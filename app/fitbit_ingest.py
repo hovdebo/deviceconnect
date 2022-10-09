@@ -75,6 +75,8 @@ from skimpy import clean_columns
 
 from .fitbit_auth import fitbit_bp
 
+import schema
+import fitbit as fitbit_classes
 
 log = logging.getLogger(__name__)
 
@@ -1000,156 +1002,24 @@ def fitbit_heart_rate_scope():
             del fitbit_bp.session.token
 
         try:
-
             resp = fitbit.get(
                 "1/user/-/activities/heart/date/" + date_pulled + "/1d.json"
             )
 
             log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
 
-            hr_zones = resp.json()["activities-heart"][0]["value"]
-            zone_list = ["Out of Range", "Fat Burn", "Cardio", "Peak"]
-            hr_zones_columns = [
-                "out_of_range_calories_out",
-                "out_of_range_minutes",
-                "out_of_range_min_hr",
-                "out_of_range_max_hr",
-                "fat_burn_calories_out",
-                "fat_burn_minutes",
-                "fat_burn_min_hr",
-                "fat_burn_max_hr",
-                "cardio_calories_out",
-                "cardio_minutes",
-                "cardio_min_hr",
-                "cardio_max_hr",
-                "peak_calories_out",
-                "peak_minutes",
-                "peak_min_hr",
-                "peak_max_hr",
-            ]
-            hr_zones_df = pd.json_normalize(hr_zones)
+            intraday_hr = fitbit_classes.IntradayHeartRate(resp.json())
 
-            user_activity_zone = pd.DataFrame(
-                {
-                    hr_zones["heartRateZones"][0]["name"]
-                    .replace(" ", "_")
-                    .lower()
-                    + "_calories_out": hr_zones["heartRateZones"][0][
-                        "caloriesOut"
-                    ],
-                    hr_zones["heartRateZones"][0]["name"]
-                    .replace(" ", "_")
-                    .lower()
-                    + "_minutes": hr_zones["heartRateZones"][0]["minutes"],
-                    hr_zones["heartRateZones"][0]["name"]
-                    .replace(" ", "_")
-                    .lower()
-                    + "_min_hr": hr_zones["heartRateZones"][0]["min"],
-                    hr_zones["heartRateZones"][0]["name"]
-                    .replace(" ", "_")
-                    .lower()
-                    + "_max_hr": hr_zones["heartRateZones"][0]["max"],
-                    hr_zones["heartRateZones"][1]["name"]
-                    .replace(" ", "_")
-                    .lower()
-                    + "_calories_out": hr_zones["heartRateZones"][1][
-                        "caloriesOut"
-                    ],
-                    hr_zones["heartRateZones"][1]["name"]
-                    .replace(" ", "_")
-                    .lower()
-                    + "_minutes": hr_zones["heartRateZones"][1]["minutes"],
-                    hr_zones["heartRateZones"][1]["name"]
-                    .replace(" ", "_")
-                    .lower()
-                    + "_min_hr": hr_zones["heartRateZones"][1]["min"],
-                    hr_zones["heartRateZones"][1]["name"]
-                    .replace(" ", "_")
-                    .lower()
-                    + "_max_hr": hr_zones["heartRateZones"][1]["max"],
-                    hr_zones["heartRateZones"][2]["name"]
-                    .replace(" ", "_")
-                    .lower()
-                    + "_calories_out": hr_zones["heartRateZones"][2][
-                        "caloriesOut"
-                    ],
-                    hr_zones["heartRateZones"][2]["name"]
-                    .replace(" ", "_")
-                    .lower()
-                    + "_minutes": hr_zones["heartRateZones"][2]["minutes"],
-                    hr_zones["heartRateZones"][2]["name"]
-                    .replace(" ", "_")
-                    .lower()
-                    + "_min_hr": hr_zones["heartRateZones"][2]["min"],
-                    hr_zones["heartRateZones"][2]["name"]
-                    .replace(" ", "_")
-                    .lower()
-                    + "_max_hr": hr_zones["heartRateZones"][2]["max"],
-                    hr_zones["heartRateZones"][3]["name"]
-                    .replace(" ", "_")
-                    .lower()
-                    + "_calories_out": hr_zones["heartRateZones"][3][
-                        "caloriesOut"
-                    ],
-                    hr_zones["heartRateZones"][3]["name"]
-                    .replace(" ", "_")
-                    .lower()
-                    + "_minutes": hr_zones["heartRateZones"][3]["minutes"],
-                    hr_zones["heartRateZones"][3]["name"]
-                    .replace(" ", "_")
-                    .lower()
-                    + "_min_hr": hr_zones["heartRateZones"][3]["min"],
-                    hr_zones["heartRateZones"][3]["name"]
-                    .replace(" ", "_")
-                    .lower()
-                    + "_max_hr": hr_zones["heartRateZones"][3]["max"],
-                },
-                index=[0],
-            )
+            intraday_hr.heart_rate_df.insert(0, "id", user)
+            hr_list.append(intraday_hr.heart_rate_df)
 
-            user_activity_zone.insert(0, "id", user)
-            user_activity_zone.insert(1, "date", date_pulled)
-            hr_zones_list.append(user_activity_zone)
-
-        except (Exception) as e:
+            intraday_hr.zones_df.insert(0, "id", user)
+            hr_zones_list.append(intraday_hr.zones_df)
+        except Exception as e:
             log.error("exception occured: %s", str(e))
-
-        try:
-
-            resp = fitbit.get(
-                "/1/user/-/activities/heart/date/" + date_pulled + "/1d.json"
-            )
-
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-
-            hr_columns = ["time", "value"]
-
-            respj = resp.json()
-            assert (
-                "activities-heart-intraday" in respj
-            ), "no intraday heart rate data returned"
-            heart_rate = respj["activities-heart-intraday"]["dataset"]
-            heart_rate_df = pd.json_normalize(heart_rate)
-            heart_rate_df = _normalize_response(
-                heart_rate_df, hr_columns, user, date_pulled
-            )
-            heart_rate_df["datetime"] = pd.to_datetime(
-                heart_rate_df["date"] + " " + heart_rate_df["time"]
-            )
-            try:
-                heart_rate_df = heart_rate_df.drop(["time"], axis=1)
-            except:
-                pass
-
-            hr_list.append(heart_rate_df)
-
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
-
     # end loop over users
 
     #### CONCAT DATAFRAMES INTO BULK DF ####
-
     load_stop = timeit.default_timer()
     time_to_load = load_stop - start
     print("Heart Rate Zones " + str(time_to_load))
@@ -1158,7 +1028,6 @@ def fitbit_heart_rate_scope():
     if len(hr_zones_list) > 0:
 
         try:
-
             bulk_hr_zones_df = pd.concat(hr_zones_list, axis=0)
 
             pandas_gbq.to_gbq(
@@ -1166,98 +1035,7 @@ def fitbit_heart_rate_scope():
                 destination_table=_tablename("heart_rate_zones"),
                 project_id=project_id,
                 if_exists="append",
-                table_schema=[
-                    {
-                        "name": "id",
-                        "type": "STRING",
-                        "description": "Primary Key",
-                    },
-                    {
-                        "name": "date",
-                        "type": "DATE",
-                        "description": "The date values were extracted",
-                    },
-                    {
-                        "name": "out_of_range_calories_out",
-                        "type": "FLOAT",
-                        "description": "Number calories burned with the specified heart rate zone.",
-                    },
-                    {
-                        "name": "out_of_range_minutes",
-                        "type": "INTEGER",
-                        "description": "Number calories burned with the specified heart rate zone.",
-                    },
-                    {
-                        "name": "out_of_range_min_hr",
-                        "type": "INTEGER",
-                        "description": "Minimum range for the heart rate zone.",
-                    },
-                    {
-                        "name": "out_of_range_max_hr",
-                        "type": "INTEGER",
-                        "description": "Maximum range for the heart rate zone.",
-                    },
-                    {
-                        "name": "fat_burn_calories_out",
-                        "type": "FLOAT",
-                        "description": "Number calories burned with the specified heart rate zone.",
-                    },
-                    {
-                        "name": "fat_burn_minutes",
-                        "type": "INTEGER",
-                        "description": "Number calories burned with the specified heart rate zone.",
-                    },
-                    {
-                        "name": "fat_burn_min_hr",
-                        "type": "INTEGER",
-                        "description": "Minimum range for the heart rate zone.",
-                    },
-                    {
-                        "name": "fat_burn_max_hr",
-                        "type": "INTEGER",
-                        "description": "Maximum range for the heart rate zone.",
-                    },
-                    {
-                        "name": "cardio_calories_out",
-                        "type": "FLOAT",
-                        "description": "Number calories burned with the specified heart rate zone.",
-                    },
-                    {
-                        "name": "cardio_minutes",
-                        "type": "INTEGER",
-                        "description": "Number calories burned with the specified heart rate zone.",
-                    },
-                    {
-                        "name": "cardio_min_hr",
-                        "type": "INTEGER",
-                        "description": "Minimum range for the heart rate zone.",
-                    },
-                    {
-                        "name": "cardio_max_hr",
-                        "type": "INTEGER",
-                        "description": "Maximum range for the heart rate zone.",
-                    },
-                    {
-                        "name": "peak_calories_out",
-                        "type": "FLOAT",
-                        "description": "Number calories burned with the specified heart rate zone.",
-                    },
-                    {
-                        "name": "peak_minutes",
-                        "type": "INTEGER",
-                        "description": "Number calories burned with the specified heart rate zone.",
-                    },
-                    {
-                        "name": "peak_min_hr",
-                        "type": "INTEGER",
-                        "description": "Minimum range for the heart rate zone.",
-                    },
-                    {
-                        "name": "peak_max_hr",
-                        "type": "INTEGER",
-                        "description": "Maximum range for the heart rate zone.",
-                    },
-                ],
+                table_schema=schema.ZONE
             )
 
         except (Exception) as e:
@@ -1266,37 +1044,15 @@ def fitbit_heart_rate_scope():
     if len(hr_list) > 0:
 
         try:
-
             bulk_hr_intraday_df = pd.concat(hr_list, axis=0)
-
             pandas_gbq.to_gbq(
                 dataframe=bulk_hr_intraday_df,
                 destination_table=_tablename("heart_rate"),
                 project_id=project_id,
                 if_exists="append",
-                table_schema=[
-                    {
-                        "name": "id",
-                        "type": "STRING",
-                        "description": "Primary Key",
-                    },
-                    {
-                        "name": "date",
-                        "type": "DATE",
-                        "description": "The date values were extracted",
-                    },
-                    {
-                        "name": "datetime",
-                        "type": "TIMESTAMP",
-                    },
-                    {
-                        "name": "value",
-                        "type": "INTEGER",
-                    },
-                    {"name": "date_time", "type": "TIMESTAMP"},
-                ],
+                table_schema=schema.HEART_RATE
             )
-        except (Exception) as e:
+        except Exception as e:
             log.error("exception occured: %s", str(e))
 
     stop = timeit.default_timer()
