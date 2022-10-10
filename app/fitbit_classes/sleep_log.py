@@ -42,29 +42,6 @@ class SleepLog:
             summary_df = pd.json_normalize(sleep["levels"]["summary"])
             summary_df = clean_columns(summary_df)
             meta_df = meta_df.join(summary_df)
-
-            meta_cols = [
-                #"date_of_sleep",
-                #"duration",
-                #"efficiency",
-                #"end_time",
-                #"info_code",
-                #"is_main_sleep",
-                #"log_id",
-                #"minutes_after_wakeup",
-                #"minutes_asleep",
-                #"minutes_awake",
-                #"minutes_to_fall_asleep",
-                #"log_type",
-                #"start_time",
-                #"time_in_bed",
-                #"type"
-            ]
-
-            #meta_df.drop(columns=meta_cols, inplace=True)
-
-            for column in meta_df.columns:
-                print(column, meta_df[column].iloc[0])
             meta_dfs.append(meta_df)
 
             stage_df = pd.json_normalize(sleep, record_path=["levels", "data"])
