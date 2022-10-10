@@ -5,4 +5,5 @@ from .intraday_floors import IntradayFloors
 from .intraday_distance import IntradayDistance
 from .intraday_elevation import IntradayElevation
 from .intraday_calories import IntradayCalories
+from .intraday_spo2 import IntradaySpo2
 from .sleep_log import SleepLog

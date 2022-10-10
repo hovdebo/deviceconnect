@@ -288,6 +288,7 @@ def fitbit_intraday_scope():
     pd.set_option("display.max_columns", 500)
 
     intraday_hrv_list = []
+    intraday_spo2_list = []
     intraday_steps_list = []
     intraday_floors_list = []
     intraday_distance_list = []
@@ -313,6 +314,19 @@ def fitbit_intraday_scope():
             intraday_hrv = fitbit_classes.IntradayHrv(resp.json())
             intraday_hrv.hrv_df.insert(0, "id", user)
             intraday_hrv_list.append(intraday_hrv.hrv_df)
+        except Exception as e:
+            log.error("exception occured: %s", str(e))
+
+        try:
+            resp = fitbit.get(
+                "/1/user/-/spo2/date/"
+                + date_pulled
+                + "/all.json"
+            )
+            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
+            intraday_spo2 = fitbit_classes.IntradaySpo2(resp.json())
+            intraday_spo2.spo2_df.insert(0, "id", user)
+            intraday_spo2_list.append(intraday_spo2.spo2_df)
         except Exception as e:
             log.error("exception occured: %s", str(e))
 
@@ -400,6 +414,22 @@ def fitbit_intraday_scope():
             )
         except Exception as e:
             log.error("exception occurred: %s", str(e))
+
+
+    if len(intraday_spo2_list) > 0:
+        try:
+            bulk_df = pd.concat(intraday_spo2_list, axis=0)
+
+            pandas_gbq.to_gbq(
+                dataframe=bulk_df,
+                destination_table=_tablename(schema.INTRADAY_SPO2_TABLE),
+                project_id=project_id,
+                if_exists="append",
+                table_schema=schema.INTRADAY_SPO2_SCHEMA
+            )
+        except Exception as e:
+            log.error("exception occurred: %s", str(e))
+
 
     if len(intraday_steps_list) > 0:
         try:

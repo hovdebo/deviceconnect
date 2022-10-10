@@ -88,6 +88,28 @@ INTRADAY_HRV_SCHEMA = [
     },
 ]
 
+
+INTRADAY_SPO2_TABLE = "intraday_spo2"
+INTRADAY_SPO2_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "description": "User id, Primary Key",
+    },
+    {
+        "name": "time",
+        "type": "TIMESTAMP",
+        "description": "Timestamp of the data"
+    },
+    {
+        "name": "spo2",
+        "type": "FLOAT",
+        "description": "The Root Mean Square of Successive Differences (RMSSD) between heart beats. It measures "
+                       "short-term variability in the user’s heart rate in milliseconds (ms)."
+    },
+]
+
+
 INTRADAY_STEPS_TABLE = "intraday_steps"
 INTRADAY_STEPS_SCHEMA = [
     {
