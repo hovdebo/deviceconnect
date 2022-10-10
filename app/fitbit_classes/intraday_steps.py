@@ -14,9 +14,9 @@ class IntradaySteps:
         total = activities["value"]
 
         activities_intraday = json_dict["activities-steps-intraday"]
-        self.activities_df = pd.json_normalize(activities_intraday, "dataset")
-        self.activities_df = normalize(self.activities_df, date, self.activities_df["time"])
-        self.activities_df.rename(columns={"value": "steps"}, inplace=True)
+        self.df = pd.json_normalize(activities_intraday, "dataset")
+        self.df = normalize(self.df, date, self.df["time"])
+        self.df.rename(columns={"value": "steps"}, inplace=True)
 
 
 if __name__ == "__main__":
@@ -52,4 +52,4 @@ if __name__ == "__main__":
     }
 
     activities = IntradaySteps(json_dict)
-    print(activities.activities_df)
+    print(activities.df)

@@ -3,19 +3,19 @@ import pandas as pd
 
 class IntradayHrv:
     def __init__(self, json_dict):
-        self.hrv_df = None
+        self.df = None
 
         hrv = json_dict["hrv"]
         if len(hrv) > 1:
             raise RuntimeError(f"More than one date specified in {json_dict}")
         hrv = hrv[0]
         minutes = hrv['minutes']
-        hrv_df = pd.json_normalize(minutes, None, ["value", "minute"])
-        hrv_df["minute"] = pd.to_datetime(hrv_df["minute"])
-        hrv_df.rename(columns={"minute": "time"}, inplace=True)
-        new_column_names = {old_name: old_name.split("value.")[1] for old_name in hrv_df.columns if len(old_name.split("value.")) ==2 }
-        hrv_df.rename(columns=new_column_names, inplace=True)
-        self.hrv_df = hrv_df
+        df = pd.json_normalize(minutes, None, ["value", "minute"])
+        df["minute"] = pd.to_datetime(df["minute"])
+        df.rename(columns={"minute": "time"}, inplace=True)
+        new_column_names = {old_name: old_name.split("value.")[1] for old_name in df.columns if len(old_name.split("value.")) ==2 }
+        df.rename(columns=new_column_names, inplace=True)
+        self.df = df
 
 
 if __name__ == "__main__":

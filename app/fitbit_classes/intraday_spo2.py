@@ -9,7 +9,7 @@ class IntradaySpo2:
         df = pd.json_normalize(minutes, None, ["value", "minute"])
         df["minute"] = pd.to_datetime(df["minute"])
         df.rename(columns={"minute": "time", "value": "spo2"}, inplace=True)
-        self.spo2_df = df
+        self.df = df
 
 
 if __name__ == "__main__":

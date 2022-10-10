@@ -295,6 +295,23 @@ def fitbit_intraday_scope():
     intraday_elevation_list = []
     intraday_calories_list = []
 
+    activities = [
+        ["/1/user/-/hrv/date/" + date_pulled + "/all.json", fitbit_classes.IntradayHrv,
+         intraday_hrv_list, schema.INTRADAY_HRV_TABLE, schema.INTRADAY_HRV_SCHEMA],
+        [f"/1/user/-/spo2/date/{date_pulled}/all.json", fitbit_classes.IntradaySpo2,
+         intraday_spo2_list, schema.INTRADAY_SPO2_TABLE, schema.INTRADAY_SPO2_TABLE],
+        [f"/1/user/-/activities/steps/date/{date_pulled}/1d/1min.json.json", fitbit_classes.IntradaySteps,
+         intraday_steps_list, schema.INTRADAY_STEPS_TABLE, schema.INTRADAY_STEPS_SCHEMA],
+        [f"/1/user/-/activities/floors/date/{date_pulled}/1d/1min.json.json", fitbit_classes.IntradayFloors,
+         intraday_floors_list, schema.INTRADAY_FLOORS_TABLE, schema.INTRADAY_FLOORS_SCHEMA],
+        [f"/1/user/-/activities/distance/date/{date_pulled}/1d/1min.json.json", fitbit_classes.IntradayDistance,
+         intraday_distance_list, schema.INTRADAY_DISTANCE_TABLE, schema.INTRADAY_DISTANCE_SCHEMA],
+        [f"/1/user/-/activities/elevation/date/{date_pulled}/1d/1min.json.json", fitbit_classes.IntradayElevation,
+         intraday_elevation_list, schema.INTRADAY_ELEVATION_TABLE, schema.INTRADAY_ELEVATION_SCHEMA],
+        [f"/1/user/-/activities/calories/date/{date_pulled}/1d/1min.json.json", fitbit_classes.IntradayCalories,
+         intraday_calories_list, schema.INTRADAY_CALORIES_TABLE, schema.INTRADAY_CALORIES_SCHEMA],
+    ]
+
     for user in user_list:
 
         log.debug("user: %s", user)
@@ -304,97 +321,19 @@ def fitbit_intraday_scope():
         if fitbit_bp.session.token:
             del fitbit_bp.session.token
 
-        try:
-            resp = fitbit.get(
-                "/1/user/-/hrv/date/"
-                + date_pulled
-                + "/all.json"
-            )
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-            intraday_hrv = fitbit_classes.IntradayHrv(resp.json())
-            intraday_hrv.hrv_df.insert(0, "id", user)
-            intraday_hrv_list.append(intraday_hrv.hrv_df)
-        except Exception as e:
-            log.error("exception occured: %s", str(e))
-
-        try:
-            resp = fitbit.get(
-                "/1/user/-/spo2/date/"
-                + date_pulled
-                + "/all.json"
-            )
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-            intraday_spo2 = fitbit_classes.IntradaySpo2(resp.json())
-            intraday_spo2.spo2_df.insert(0, "id", user)
-            intraday_spo2_list.append(intraday_spo2.spo2_df)
-        except Exception as e:
-            log.error("exception occured: %s", str(e))
-
-        try:
-            resp = fitbit.get(
-                "/1/user/-/activities/steps/date/"
-                + date_pulled
-                + "/1d/1min.json"
-            )
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-            intraday = fitbit_classes.IntradaySteps(resp.json())
-            intraday.activities_df.insert(0, "id", user)
-            intraday_steps_list.append(intraday.activities_df)
-        except Exception as e:
-            log.error("exception occured: %s", str(e))
-
-        try:
-            resp = fitbit.get(
-                "/1/user/-/activities/floors/date/"
-                + date_pulled
-                + "/1d/1min.json"
-            )
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-            intraday = fitbit_classes.IntradayFloors(resp.json())
-            intraday.activities_df.insert(0, "id", user)
-            intraday_floors_list.append(intraday.activities_df)
-        except Exception as e:
-            log.error("exception occured: %s", str(e))
-
-        try:
-            resp = fitbit.get(
-                "/1/user/-/activities/distance/date/"
-                + date_pulled
-                + "/1d/1min.json"
-            )
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-            intraday = fitbit_classes.IntradayDistance(resp.json())
-            intraday.activities_df.insert(0, "id", user)
-            intraday_distance_list.append(intraday.activities_df)
-        except Exception as e:
-            log.error("exception occured: %s", str(e))
-
-        try:
-            resp = fitbit.get(
-                "/1/user/-/activities/elevation/date/"
-                + date_pulled
-                + "/1d/1min.json"
-            )
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-            intraday = fitbit_classes.IntradayElevation(resp.json())
-            intraday.activities_df.insert(0, "id", user)
-            intraday_elevation_list.append(intraday.activities_df)
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
-
-        try:
-            resp = fitbit.get(
-                "/1/user/-/activities/calories/date/"
-                + date_pulled
-                + "/1d/1min.json"
-            )
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-            intraday = fitbit_classes.IntradayCalories(resp.json())
-            intraday.activities_df.insert(0, "id", user)
-            intraday_calories_list.append(intraday.activities_df)
-            print("Calories df", intraday.activities_df)
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
+        for activity in activities:
+            try:
+                url = activity[0]
+                class_type = activity[1]
+                df_list = activity[2]
+                
+                resp = fitbit.get(url)
+                log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
+                df = class_type(resp.json()).df
+                df.insert(0, "id", user)
+                df_list.append(df)
+            except Exception as e:
+                log.error(f"Exception occurred during processing of url '{url}': {e}")
 
     # end loop over users
 
@@ -402,105 +341,23 @@ def fitbit_intraday_scope():
     fitbit_execution_time = fitbit_stop - start
     print("Intraday Scope: " + str(fitbit_execution_time))
 
-    if len(intraday_hrv_list) > 0:
-        try:
-            bulk_df = pd.concat(intraday_hrv_list, axis=0)
+    for activity in activities:
+        df_list = activity[2]
+        table_name = activity[3]
+        table_schema = activity[4]
 
-            pandas_gbq.to_gbq(
-                dataframe=bulk_df,
-                destination_table=_tablename(schema.INTRADAY_HRV_TABLE),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=schema.INTRADAY_HRV_SCHEMA
-            )
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
-
-
-    if len(intraday_spo2_list) > 0:
-        try:
-            bulk_df = pd.concat(intraday_spo2_list, axis=0)
-
-            pandas_gbq.to_gbq(
-                dataframe=bulk_df,
-                destination_table=_tablename(schema.INTRADAY_SPO2_TABLE),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=schema.INTRADAY_SPO2_SCHEMA
-            )
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
-
-
-    if len(intraday_steps_list) > 0:
-        try:
-            bulk_df = pd.concat(intraday_steps_list, axis=0)
-            print("steps")
-            pandas_gbq.to_gbq(
-                dataframe=bulk_df,
-                destination_table=_tablename(schema.INTRADAY_STEPS_TABLE),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=schema.INTRADAY_STEPS_SCHEMA
-            )
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
-
-    if len(intraday_floors_list) > 0:
-        try:
-            bulk_df = pd.concat(intraday_floors_list, axis=0)
-            print("floors")
-            pandas_gbq.to_gbq(
-                dataframe=bulk_df,
-                destination_table=_tablename(schema.INTRADAY_FLOORS_TABLE),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=schema.INTRADAY_FLOORS_SCHEMA
-            )
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
-
-    if len(intraday_floors_list) > 0:
-        try:
-            bulk_df = pd.concat(intraday_distance_list, axis=0)
-            print('distance')
-            pandas_gbq.to_gbq(
-                dataframe=bulk_df,
-                destination_table=_tablename(schema.INTRADAY_DISTANCE_TABLE),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=schema.INTRADAY_DISTANCE_SCHEMA
-            )
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
-
-    if len(intraday_elevation_list) > 0:
-        try:
-            bulk_df = pd.concat(intraday_elevation_list, axis=0)
-            print("elevation")
-            pandas_gbq.to_gbq(
-                dataframe=bulk_df,
-                destination_table=_tablename(schema.INTRADAY_ELEVATION_TABLE),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=schema.INTRADAY_ELEVATION_SCHEMA
-            )
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
-
-    if len(intraday_calories_list) > 0:
-        try:
-            bulk_df = pd.concat(intraday_calories_list, axis=0)
-            print("calories")
-            pandas_gbq.to_gbq(
-                dataframe=bulk_df,
-                destination_table=_tablename(schema.INTRADAY_CALORIES_TABLE),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=schema.INTRADAY_CALORIES_SCHEMA
-            )
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
+        if len(df_list) > 0:
+            try:
+                bulk_df = pd.concat(df_list, axis=0)
+                pandas_gbq.to_gbq(
+                    dataframe=bulk_df,
+                    destination_table=_tablename(table_name),
+                    project_id=project_id,
+                    if_exists="append",
+                    table_schema=table_schema
+                )
+            except Exception as e:
+                log.error("exception occurred: %s", str(e))
 
     stop = timeit.default_timer()
     execution_time = stop - start
