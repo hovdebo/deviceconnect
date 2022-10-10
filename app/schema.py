@@ -53,8 +53,8 @@ HEART_RATE_SCHEMA = [
     },
 ]
 
-HRV_TABLE = "hrv"
-HRV_SCHEMA = [
+INTRADAY_HRV_TABLE = "intraday_hrv"
+INTRADAY_HRV_SCHEMA = [
     {
         "name": "id",
         "type": "STRING",
@@ -87,6 +87,112 @@ HRV_SCHEMA = [
         "description": "The power in interbeat interval fluctuations within the low frequency band (0.04 Hz - 0.15 Hz)."
     },
 ]
+
+INTRADAY_STEPS_TABLE = "intraday_steps"
+INTRADAY_STEPS_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "description": "User id, Primary Key",
+    },
+    {
+        "name": "time",
+        "type": "TIMESTAMP",
+        "description": "Timestamp of the data"
+    },
+    {
+        "name": "steps",
+        "type": "INTEGER",
+        "description": "Number of steps in the interval"
+    },
+]
+
+INTRADAY_FLOORS_TABLE = "intraday_floors"
+INTRADAY_FLOORS_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "description": "User id, Primary Key",
+    },
+    {
+        "name": "time",
+        "type": "TIMESTAMP",
+        "description": "Timestamp of the data"
+    },
+    {
+        "name": "floors",
+        "type": "INTEGER",
+        "description": "Number of floors in the interval"
+    },
+]
+
+INTRADAY_DISTANCE_TABLE = "intraday_distance"
+INTRADAY_DISTANCE_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "description": "User id, Primary Key",
+    },
+    {
+        "name": "time",
+        "type": "TIMESTAMP",
+        "description": "Timestamp of the data"
+    },
+    {
+        "name": "distance",
+        "type": "INTEGER",
+        "description": "Number of distance in the interval"
+    },
+]
+
+INTRADAY_ELEVATION_TABLE = "intraday_elevation"
+INTRADAY_ELEVATION_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "description": "User id, Primary Key",
+    },
+    {
+        "name": "time",
+        "type": "TIMESTAMP",
+        "description": "Timestamp of the data"
+    },
+    {
+        "name": "elevation",
+        "type": "INTEGER",
+        "description": "Number of elevation in the interval"
+    },
+]
+
+INTRADAY_CALORIES_TABLE = "intraday_calories"
+INTRADAY_CALORIES_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "description": "User id, Primary Key",
+    },
+    {
+        "name": "time",
+        "type": "TIMESTAMP",
+        "description": "Timestamp of the data"
+    },
+    {
+        "name": "calories",
+        "type": "INTEGER",
+        "description": "Number of calories in the interval"
+    },
+    {
+        "name": "level",
+        "type": "INTEGER",
+        "description": "Activity level in the interval"
+    },
+    {
+        "name": "mets",
+        "type": "INTEGER",
+        "description": "METs value in the interval"
+    },
+]
+
 
 SLEEP_STAGES_TABLE = "sleep_stages"
 SLEEP_STAGES_SCHEMA = [
