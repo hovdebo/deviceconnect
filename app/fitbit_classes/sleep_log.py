@@ -50,7 +50,7 @@ class SleepLog:
                 "end_time",
                 "info_code",
                 "is_main_sleep",
-                "log_id",
+                #"log_id",
                 "minutes_after_wakeup",
                 "minutes_asleep",
                 "minutes_awake",
