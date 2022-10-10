@@ -394,3 +394,362 @@ SLEEP_RECORDS_SCHEMA = [
                        "generate this value. When a classic sleep log is recorded, this value will be missing.",
     },
 ]
+
+BADGES_TABLE = "badges"
+BADGES_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "mode": "REQUIRED",
+        "description": "Primary Key",
+    },
+    {
+        "name": "date",
+        "type": "DATE",
+        "mode": "REQUIRED",
+        "description": "The date values were extracted",
+    },
+    {"name": "badge_gradient_end_color", "type": "STRING"},
+    {"name": "badge_gradient_start_color", "type": "STRING"},
+    {
+        "name": "badge_type",
+        "type": "STRING",
+        "description": "Type of badge received.",
+    },
+    {"name": "category", "type": "STRING"},
+    {
+        "name": "date_time",
+        "type": "STRING",
+        "description": "Date the badge was achieved.",
+    },
+    {"name": "description", "type": "STRING"},
+    {"name": "image_100px", "type": "STRING"},
+    {"name": "image_125px", "type": "STRING"},
+    {"name": "image_300px", "type": "STRING"},
+    {"name": "image_50px", "type": "STRING"},
+    {"name": "image_75px", "type": "STRING"},
+    {"name": "name", "type": "STRING"},
+    {"name": "share_image_640px", "type": "STRING"},
+    {"name": "share_text", "type": "STRING"},
+    {"name": "short_name", "type": "STRING"},
+    {
+        "name": "times_achieved",
+        "type": "INTEGER",
+        "description": "Number of times the user has achieved the badge.",
+    },
+    {
+        "name": "value",
+        "type": "INTEGER",
+        "description": "Units of meaure based on localization settings.",
+    },
+    {
+        "name": "unit",
+        "type": "STRING",
+        "description": "The badge goal in the unit measurement.",
+    },
+]
+
+DEVICES_TABLE = "devices"
+DEVICES_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "description": "Primary Key",
+    },
+    {
+        "name": "date",
+        "type": "DATE",
+        "description": "The date values were extracted",
+    },
+    {
+        "name": "battery",
+        "type": "STRING",
+        "description": "Returns the battery level of the device. Supported: High | Medium | Low | Empty",
+    },
+    {
+        "name": "battery_level",
+        "type": "INTEGER",
+        "description": "Returns the battery level percentage of the device.",
+    },
+    {
+        "name": "device_version",
+        "type": "STRING",
+        "description": "The product name of the device.",
+    },
+    {
+        "name": "last_sync_time",
+        "type": "TIMESTAMP",
+        "description": "Timestamp representing the last time the device was sync'd with the Fitbit mobile application.",
+    },
+]
+
+SOCIAL_TABLE = "social"
+SOCIAL_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "description": "Primary Key",
+    },
+    {
+        "name": "date",
+        "type": "DATE",
+        "description": "The date values were extracted",
+    },
+    {
+        "name": "friend_id",
+        "type": "STRING",
+        "description": "Fitbit user id",
+    },
+    {
+        "name": "type",
+        "type": "STRING",
+        "description": "Fitbit user id",
+    },
+    {
+        "name": "attributes_name",
+        "type": "STRING",
+        "description": "Person's display name.",
+    },
+    {
+        "name": "attributes_friend",
+        "type": "BOOLEAN",
+        "description": "The product name of the device.",
+    },
+    {
+        "name": "attributes_avatar",
+        "type": "STRING",
+        "description": "Link to user's avatar picture.",
+    },
+    {
+        "name": "attributes_child",
+        "type": "BOOLEAN",
+        "description": "Boolean value describing friend as a child account.",
+    },
+]
+
+BODY_WEIGHT_TABLE = "body_weight"
+BODY_WEIGHT_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "mode": "REQUIRED",
+        "description": "Primary Key",
+    },
+    {
+        "name": "date",
+        "type": "DATE",
+        "mode": "REQUIRED",
+        "description": "The date values were extracted",
+    },
+    {
+        "name": "bmi",
+        "type": "FLOAT",
+        "description": "Calculated BMI in the format X.XX",
+    },
+    {
+        "name": "fat",
+        "type": "FLOAT",
+        "description": "The body fat percentage.",
+    },
+    {
+        "name": "log_id",
+        "type": "INTEGER",
+        "description": "Weight Log IDs are unique to the user, but not globally unique.",
+    },
+    {
+        "name": "source",
+        "type": "STRING",
+        "description": "The source of the weight log.",
+    },
+    {
+        "name": "weight",
+        "type": "FLOAT",
+        "description": "Weight in the format X.XX,",
+    },
+]
+
+NUTRITION_SUMMARY_TABLE = "nutrition_summary"
+NUTRITION_SUMMARY_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "mode": "REQUIRED",
+        "description": "Primary Key",
+    },
+    {
+        "name": "date",
+        "type": "DATE",
+        "mode": "REQUIRED",
+        "description": "The date values were extracted",
+    },
+    {
+        "name": "calories",
+        "type": "FLOAT",
+        "description": "Total calories consumed.",
+    },
+    {
+        "name": "carbs",
+        "type": "FLOAT",
+        "description": "Total carbs consumed.",
+    },
+    {
+        "name": "fat",
+        "type": "FLOAT",
+        "description": "Total fats consumed.",
+    },
+    {
+        "name": "fiber",
+        "type": "FLOAT",
+        "description": "Total fibers cosnsumed.",
+    },
+    {
+        "name": "protein",
+        "type": "FLOAT",
+        "description": "Total proteins consumed.",
+    },
+    {
+        "name": "sodium",
+        "type": "FLOAT",
+        "description": "Total sodium consumed.",
+    },
+    {
+        "name": "water",
+        "type": "FLOAT",
+        "description": "Total water consumed",
+    },
+]
+
+NUTRITION_LOGS_TABLE = "nutrition_logs"
+NUTRITION_LOGS_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "mode": "REQUIRED",
+        "description": "Primary Key",
+    },
+    {
+        "name": "date",
+        "type": "DATE",
+        "mode": "REQUIRED",
+        "description": "The date values were extracted",
+    },
+    {
+        "name": "is_favorite",
+        "type": "BOOLEAN",
+        "mode": "NULLABLE",
+        "description": "Total calories consumed.",
+    },
+    {
+        "name": "log_date",
+        "type": "DATE",
+        "mode": "NULLABLE",
+        "description": "Date of the food log.",
+    },
+    {
+        "name": "log_id",
+        "type": "INTEGER",
+        "mode": "NULLABLE",
+        "description": "Food log id.",
+    },
+    {
+        "name": "logged_food_access_level",
+        "type": "STRING",
+        "mode": "NULLABLE",
+    },
+    {
+        "name": "logged_food_amount",
+        "type": "FLOAT",
+        "mode": "NULLABLE",
+    },
+    {
+        "name": "logged_food_brand",
+        "type": "STRING",
+        "mode": "NULLABLE",
+    },
+    {
+        "name": "logged_food_calories",
+        "type": "INTEGER",
+        "mode": "NULLABLE",
+    },
+    {
+        "name": "logged_food_food_id",
+        "type": "INTEGER",
+        "mode": "NULLABLE",
+    },
+    {
+        "name": "logged_food_meal_type_id",
+        "type": "INTEGER",
+        "mode": "NULLABLE",
+    },
+    {
+        "name": "logged_food_name",
+        "type": "STRING",
+        "mode": "NULLABLE",
+    },
+    {
+        "name": "logged_food_unit_name",
+        "type": "STRING",
+        "mode": "NULLABLE",
+    },
+    {
+        "name": "logged_food_unit_plural",
+        "type": "STRING",
+        "mode": "NULLABLE",
+    },
+    {
+        "name": "nutritional_values_calories",
+        "type": "FLOAT",
+        "mode": "NULLABLE",
+    },
+    {
+        "name": "nutritional_values_carbs",
+        "type": "FLOAT",
+        "mode": "NULLABLE",
+    },
+    {
+        "name": "nutritional_values_fat",
+        "type": "FLOAT",
+        "mode": "NULLABLE",
+    },
+    {
+        "name": "nutritional_values_fiber",
+        "type": "FLOAT",
+        "mode": "NULLABLE",
+    },
+    {
+        "name": "nutritional_values_protein",
+        "type": "FLOAT",
+        "mode": "NULLABLE",
+    },
+    {
+        "name": "nutritional_values_sodium",
+        "type": "FLOAT",
+        "mode": "NULLABLE",
+    },
+    {
+        "name": "logged_food_locale",
+        "type": "STRING",
+        "mode": "NULLABLE",
+    },
+]
+
+NUTRITION_GOALS_TABLE = "nutrition_goals"
+NUTRITION_GOALS_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "mode": "REQUIRED",
+        "description": "Primary Key",
+    },
+    {
+        "name": "date",
+        "type": "DATE",
+        "mode": "REQUIRED",
+        "description": "The date values were extracted",
+    },
+    {
+        "name": "calories",
+        "type": "INTEGER",
+        "description": "The users set calorie goal",
+    },
+]

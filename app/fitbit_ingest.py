@@ -116,6 +116,21 @@ def _date_pulled():
     return date_pulled.strftime("%Y-%m-%d")
 
 
+def _write_to_bq(df_list, table_name, project_id, table_schema):
+    if len(df_list) > 0:
+        try:
+            bulk_df = pd.concat(df_list, axis=0)
+            pandas_gbq.to_gbq(
+                dataframe=bulk_df,
+                destination_table=_tablename(table_name),
+                project_id=project_id,
+                if_exists="append",
+                table_schema=table_schema
+            )
+        except Exception as e:
+            log.error("exception occurred: %s", str(e))
+
+
 @bp.route("/fitbit_heart_rate_scope")
 def fitbit_heart_rate_scope():
     start = timeit.default_timer()
@@ -155,31 +170,8 @@ def fitbit_heart_rate_scope():
     time_to_load = load_stop - start
     print("Heart Rate Zones " + str(time_to_load))
 
-    if len(hr_zones_list) > 0:
-        try:
-            bulk_hr_zones_df = pd.concat(hr_zones_list, axis=0)
-            pandas_gbq.to_gbq(
-                dataframe=bulk_hr_zones_df,
-                destination_table=_tablename(schema.ZONE_TABLE),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=schema.ZONE_SCHEMA
-            )
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
-
-    if len(hr_list) > 0:
-        try:
-            bulk_hr_intraday_df = pd.concat(hr_list, axis=0)
-            pandas_gbq.to_gbq(
-                dataframe=bulk_hr_intraday_df,
-                destination_table=_tablename(schema.HEART_RATE_TABLE),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=schema.HEART_RATE_SCHEMA
-            )
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
+    _write_to_bq(hr_zones_list, schema.ZONE_TABLE, project_id, schema.ZONE_SCHEMA)
+    _write_to_bq(hr_list, schema.HEART_RATE_TABLE, project_id, schema.HEART_RATE_SCHEMA)
 
     stop = timeit.default_timer()
     execution_time = stop - start
@@ -233,37 +225,8 @@ def fitbit_sleep_scope():
     fitbit_execution_time = fitbit_stop - start
     print("Sleep Scope: " + str(fitbit_execution_time))
 
-    if len(sleep_stage_list) > 0:
-
-        try:
-
-            bulk_df = pd.concat(sleep_stage_list, axis=0)
-
-            pandas_gbq.to_gbq(
-                dataframe=bulk_df,
-                destination_table=_tablename(schema.SLEEP_STAGES_TABLE),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=schema.SLEEP_STAGES_SCHEMA
-            )
-
-        except Exception as e:
-            log.error("exception occured: %s", str(e))
-
-    if len(sleep_meta_list) > 0:
-
-        try:
-            bulk_df = pd.concat(sleep_meta_list, axis=0)
-            pandas_gbq.to_gbq(
-                dataframe=bulk_df,
-                destination_table=_tablename(schema.SLEEP_RECORDS_TABLE),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=schema.SLEEP_RECORDS_SCHEMA
-            )
-
-        except Exception as e:
-            log.error("exception occured: %s", str(e))
+    _write_to_bq(sleep_stage_list, schema.SLEEP_STAGES_TABLE, project_id, schema.SLEEP_STAGES_SCHEMA)
+    _write_to_bq(sleep_meta_list, schema.SLEEP_RECORDS_TABLE, project_id, schema.SLEEP_RECORDS_SCHEMA)
 
     stop = timeit.default_timer()
     execution_time = stop - start
@@ -296,9 +259,9 @@ def fitbit_intraday_scope():
     intraday_calories_list = []
 
     activities = [
-        ["/1/user/-/hrv/date/" + date_pulled + "/all.json", fitbit_classes.IntradayHrv,
+        [f"/1/user/-/hrv/date/{date_pulled}/all.json", fitbit_classes.IntradayHrv,
          intraday_hrv_list, schema.INTRADAY_HRV_TABLE, schema.INTRADAY_HRV_SCHEMA],
-        ["/1/user/-/spo2/date/" + date_pulled + "/all.json", fitbit_classes.IntradaySpo2,
+        [f"/1/user/-/spo2/date/{date_pulled}/all.json", fitbit_classes.IntradaySpo2,
          intraday_spo2_list, schema.INTRADAY_SPO2_TABLE, schema.INTRADAY_SPO2_TABLE],
         [f"/1/user/-/activities/steps/date/{date_pulled}/1d/1min.json", fitbit_classes.IntradaySteps,
          intraday_steps_list, schema.INTRADAY_STEPS_TABLE, schema.INTRADAY_STEPS_SCHEMA],
@@ -313,9 +276,7 @@ def fitbit_intraday_scope():
     ]
 
     for user in user_list:
-
         log.debug("user: %s", user)
-
         fitbit_bp.storage.user = user
 
         if fitbit_bp.session.token:
@@ -345,19 +306,7 @@ def fitbit_intraday_scope():
         df_list = activity[2]
         table_name = activity[3]
         table_schema = activity[4]
-
-        if len(df_list) > 0:
-            try:
-                bulk_df = pd.concat(df_list, axis=0)
-                pandas_gbq.to_gbq(
-                    dataframe=bulk_df,
-                    destination_table=_tablename(table_name),
-                    project_id=project_id,
-                    if_exists="append",
-                    table_schema=table_schema
-                )
-            except Exception as e:
-                log.error("exception occurred: %s", str(e))
+        _write_to_bq(df_list, table_name, project_id, table_schema)
 
     stop = timeit.default_timer()
     execution_time = stop - start
@@ -366,10 +315,6 @@ def fitbit_intraday_scope():
     fitbit_bp.storage.user = None
 
     return "Intraday Scope Loaded"
-
-
-
-
 
 
 
@@ -567,189 +512,10 @@ def fitbit_chunk_1():
     print("Program Executed in " + str(time_to_load))
 
     # ######## LOAD DATA INTO BIGQUERY #########
-
     log.debug("push to BQ")
-
-    # sql = """
-    # SELECT country_name, alpha_2_code
-    # FROM `bigquery-public-data.utility_us.country_code_iso`
-    # WHERE alpha_2_code LIKE 'A%'
-    # """
-    # df = pandas_gbq.read_gbq(sql, project_id=project_id)
-
-    if len(badges_list) > 0:
-
-        try:
-
-            bulk_badges_df = pd.concat(badges_list, axis=0)
-
-            pandas_gbq.to_gbq(
-                dataframe=bulk_badges_df,
-                destination_table=_tablename("badges"),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=[
-                    {
-                        "name": "id",
-                        "type": "STRING",
-                        "mode": "REQUIRED",
-                        "description": "Primary Key",
-                    },
-                    {
-                        "name": "date",
-                        "type": "DATE",
-                        "mode": "REQUIRED",
-                        "description": "The date values were extracted",
-                    },
-                    {"name": "badge_gradient_end_color", "type": "STRING"},
-                    {"name": "badge_gradient_start_color", "type": "STRING"},
-                    {
-                        "name": "badge_type",
-                        "type": "STRING",
-                        "description": "Type of badge received.",
-                    },
-                    {"name": "category", "type": "STRING"},
-                    {
-                        "name": "date_time",
-                        "type": "STRING",
-                        "description": "Date the badge was achieved.",
-                    },
-                    {"name": "description", "type": "STRING"},
-                    {"name": "image_100px", "type": "STRING"},
-                    {"name": "image_125px", "type": "STRING"},
-                    {"name": "image_300px", "type": "STRING"},
-                    {"name": "image_50px", "type": "STRING"},
-                    {"name": "image_75px", "type": "STRING"},
-                    {"name": "name", "type": "STRING"},
-                    {"name": "share_image_640px", "type": "STRING"},
-                    {"name": "share_text", "type": "STRING"},
-                    {"name": "short_name", "type": "STRING"},
-                    {
-                        "name": "times_achieved",
-                        "type": "INTEGER",
-                        "description": "Number of times the user has achieved the badge.",
-                    },
-                    {
-                        "name": "value",
-                        "type": "INTEGER",
-                        "description": "Units of meaure based on localization settings.",
-                    },
-                    {
-                        "name": "unit",
-                        "type": "STRING",
-                        "description": "The badge goal in the unit measurement.",
-                    },
-                ],
-            )
-
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
-
-    if len(device_list) > 0:
-
-        try:
-
-            bulk_device_df = pd.concat(device_list, axis=0)
-
-            pandas_gbq.to_gbq(
-                dataframe=bulk_device_df,
-                destination_table=_tablename("device"),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=[
-                    {
-                        "name": "id",
-                        "type": "STRING",
-                        "description": "Primary Key",
-                    },
-                    {
-                        "name": "date",
-                        "type": "DATE",
-                        "description": "The date values were extracted",
-                    },
-                    {
-                        "name": "battery",
-                        "type": "STRING",
-                        "description": "Returns the battery level of the device. Supported: High | Medium | Low | Empty",
-                    },
-                    {
-                        "name": "battery_level",
-                        "type": "INTEGER",
-                        "description": "Returns the battery level percentage of the device.",
-                    },
-                    {
-                        "name": "device_version",
-                        "type": "STRING",
-                        "description": "The product name of the device.",
-                    },
-                    {
-                        "name": "last_sync_time",
-                        "type": "TIMESTAMP",
-                        "description": "Timestamp representing the last time the device was sync'd with the Fitbit mobile application.",
-                    },
-                ],
-            )
-
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
-
-    if len(social_list) > 0:
-
-        try:
-
-            bulk_social_df = pd.concat(social_list, axis=0)
-
-            pandas_gbq.to_gbq(
-                dataframe=bulk_social_df,
-                destination_table=_tablename("social"),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=[
-                    {
-                        "name": "id",
-                        "type": "STRING",
-                        "description": "Primary Key",
-                    },
-                    {
-                        "name": "date",
-                        "type": "DATE",
-                        "description": "The date values were extracted",
-                    },
-                    {
-                        "name": "friend_id",
-                        "type": "STRING",
-                        "description": "Fitbit user id",
-                    },
-                    {
-                        "name": "type",
-                        "type": "STRING",
-                        "description": "Fitbit user id",
-                    },
-                    {
-                        "name": "attributes_name",
-                        "type": "STRING",
-                        "description": "Person's display name.",
-                    },
-                    {
-                        "name": "attributes_friend",
-                        "type": "BOOLEAN",
-                        "description": "The product name of the device.",
-                    },
-                    {
-                        "name": "attributes_avatar",
-                        "type": "STRING",
-                        "description": "Link to user's avatar picture.",
-                    },
-                    {
-                        "name": "attributes_child",
-                        "type": "BOOLEAN",
-                        "description": "Boolean value describing friend as a child account.",
-                    },
-                ],
-            )
-
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
+    _write_to_bq(badges_list, schema.BADGES_TABLE, project_id, schema.BADGES_SCHEMA)
+    _write_to_bq(device_list, schema.DEVICES_TABLE, project_id, schema.DEVICES_SCHEMA)
+    _write_to_bq(social_list, schema.SOCIAL_TABLE, project_id, schema.SOCIAL_SCHEMA)
 
     stop = timeit.default_timer()
     execution_time = stop - start
@@ -815,61 +581,7 @@ def fitbit_body_weight():
     # end loop over users
 
     log.debug("push to BQ")
-
-    if len(body_weight_df_list) > 0:
-
-        try:
-
-            bulk_body_weight_df = pd.concat(body_weight_df_list, axis=0)
-
-            pandas_gbq.to_gbq(
-                dataframe=bulk_body_weight_df,
-                destination_table=_tablename("body_weight"),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=[
-                    {
-                        "name": "id",
-                        "type": "STRING",
-                        "mode": "REQUIRED",
-                        "description": "Primary Key",
-                    },
-                    {
-                        "name": "date",
-                        "type": "DATE",
-                        "mode": "REQUIRED",
-                        "description": "The date values were extracted",
-                    },
-                    {
-                        "name": "bmi",
-                        "type": "FLOAT",
-                        "description": "Calculated BMI in the format X.XX",
-                    },
-                    {
-                        "name": "fat",
-                        "type": "FLOAT",
-                        "description": "The body fat percentage.",
-                    },
-                    {
-                        "name": "log_id",
-                        "type": "INTEGER",
-                        "description": "Weight Log IDs are unique to the user, but not globally unique.",
-                    },
-                    {
-                        "name": "source",
-                        "type": "STRING",
-                        "description": "The source of the weight log.",
-                    },
-                    {
-                        "name": "weight",
-                        "type": "FLOAT",
-                        "description": "Weight in the format X.XX,",
-                    },
-                ],
-            )
-
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
+    _write_to_bq(body_weight_df_list, schema.BODY_WEIGHT_TABLE, project_id, schema.BODY_WEIGHT_SCHEMA)
 
     stop = timeit.default_timer()
     execution_time = stop - start
@@ -1001,235 +713,9 @@ def fitbit_nutrition_scope():
     # end of loop over users
     log.debug("push to BQ")
 
-    if len(nutrition_summary_list) > 0:
-
-        try:
-
-            bulk_nutrition_summary_df = pd.concat(
-                nutrition_summary_list, axis=0
-            )
-
-            pandas_gbq.to_gbq(
-                dataframe=bulk_nutrition_summary_df,
-                destination_table=_tablename("nutrition_summary"),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=[
-                    {
-                        "name": "id",
-                        "type": "STRING",
-                        "mode": "REQUIRED",
-                        "description": "Primary Key",
-                    },
-                    {
-                        "name": "date",
-                        "type": "DATE",
-                        "mode": "REQUIRED",
-                        "description": "The date values were extracted",
-                    },
-                    {
-                        "name": "calories",
-                        "type": "FLOAT",
-                        "description": "Total calories consumed.",
-                    },
-                    {
-                        "name": "carbs",
-                        "type": "FLOAT",
-                        "description": "Total carbs consumed.",
-                    },
-                    {
-                        "name": "fat",
-                        "type": "FLOAT",
-                        "description": "Total fats consumed.",
-                    },
-                    {
-                        "name": "fiber",
-                        "type": "FLOAT",
-                        "description": "Total fibers cosnsumed.",
-                    },
-                    {
-                        "name": "protein",
-                        "type": "FLOAT",
-                        "description": "Total proteins consumed.",
-                    },
-                    {
-                        "name": "sodium",
-                        "type": "FLOAT",
-                        "description": "Total sodium consumed.",
-                    },
-                    {
-                        "name": "water",
-                        "type": "FLOAT",
-                        "description": "Total water consumed",
-                    },
-                ],
-            )
-
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
-
-    if len(nutrition_logs_list) > 0:
-
-        try:
-
-            bulk_nutrition_logs_df = pd.concat(nutrition_logs_list, axis=0)
-
-            pandas_gbq.to_gbq(
-                dataframe=bulk_nutrition_logs_df,
-                destination_table=_tablename("nutrition_logs"),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=[
-                    {
-                        "name": "id",
-                        "type": "STRING",
-                        "mode": "REQUIRED",
-                        "description": "Primary Key",
-                    },
-                    {
-                        "name": "date",
-                        "type": "DATE",
-                        "mode": "REQUIRED",
-                        "description": "The date values were extracted",
-                    },
-                    {
-                        "name": "is_favorite",
-                        "type": "BOOLEAN",
-                        "mode": "NULLABLE",
-                        "description": "Total calories consumed.",
-                    },
-                    {
-                        "name": "log_date",
-                        "type": "DATE",
-                        "mode": "NULLABLE",
-                        "description": "Date of the food log.",
-                    },
-                    {
-                        "name": "log_id",
-                        "type": "INTEGER",
-                        "mode": "NULLABLE",
-                        "description": "Food log id.",
-                    },
-                    {
-                        "name": "logged_food_access_level",
-                        "type": "STRING",
-                        "mode": "NULLABLE",
-                    },
-                    {
-                        "name": "logged_food_amount",
-                        "type": "FLOAT",
-                        "mode": "NULLABLE",
-                    },
-                    {
-                        "name": "logged_food_brand",
-                        "type": "STRING",
-                        "mode": "NULLABLE",
-                    },
-                    {
-                        "name": "logged_food_calories",
-                        "type": "INTEGER",
-                        "mode": "NULLABLE",
-                    },
-                    {
-                        "name": "logged_food_food_id",
-                        "type": "INTEGER",
-                        "mode": "NULLABLE",
-                    },
-                    {
-                        "name": "logged_food_meal_type_id",
-                        "type": "INTEGER",
-                        "mode": "NULLABLE",
-                    },
-                    {
-                        "name": "logged_food_name",
-                        "type": "STRING",
-                        "mode": "NULLABLE",
-                    },
-                    {
-                        "name": "logged_food_unit_name",
-                        "type": "STRING",
-                        "mode": "NULLABLE",
-                    },
-                    {
-                        "name": "logged_food_unit_plural",
-                        "type": "STRING",
-                        "mode": "NULLABLE",
-                    },
-                    {
-                        "name": "nutritional_values_calories",
-                        "type": "FLOAT",
-                        "mode": "NULLABLE",
-                    },
-                    {
-                        "name": "nutritional_values_carbs",
-                        "type": "FLOAT",
-                        "mode": "NULLABLE",
-                    },
-                    {
-                        "name": "nutritional_values_fat",
-                        "type": "FLOAT",
-                        "mode": "NULLABLE",
-                    },
-                    {
-                        "name": "nutritional_values_fiber",
-                        "type": "FLOAT",
-                        "mode": "NULLABLE",
-                    },
-                    {
-                        "name": "nutritional_values_protein",
-                        "type": "FLOAT",
-                        "mode": "NULLABLE",
-                    },
-                    {
-                        "name": "nutritional_values_sodium",
-                        "type": "FLOAT",
-                        "mode": "NULLABLE",
-                    },
-                    {
-                        "name": "logged_food_locale",
-                        "type": "STRING",
-                        "mode": "NULLABLE",
-                    },
-                ],
-            )
-
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
-
-    if len(nutrition_goals_list) > 0:
-
-        try:
-
-            bulk_nutrition_goal_df = pd.concat(nutrition_goals_list, axis=0)
-
-            pandas_gbq.to_gbq(
-                dataframe=bulk_nutrition_goal_df,
-                destination_table=_tablename("nutrition_goals"),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=[
-                    {
-                        "name": "id",
-                        "type": "STRING",
-                        "mode": "REQUIRED",
-                        "description": "Primary Key",
-                    },
-                    {
-                        "name": "date",
-                        "type": "DATE",
-                        "mode": "REQUIRED",
-                        "description": "The date values were extracted",
-                    },
-                    {
-                        "name": "calories",
-                        "type": "INTEGER",
-                        "description": "The users set calorie goal",
-                    },
-                ],
-            )
-
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
+    _write_to_bq(nutrition_summary_list, schema.NUTRITION_SUMMARY_TABLE, project_id, schema.NUTRITION_SUMMARY_SCHEMA)
+    _write_to_bq(nutrition_logs_list, schema.NUTRITION_LOGS_TABLE, project_id, schema.NUTRITION_LOGS_SCHEMA)
+    _write_to_bq(nutrition_goals_list, schema.NUTRITION_GOALS_TABLE, project_id, schema.NUTRITION_GOALS_SCHEMA)
 
     stop = timeit.default_timer()
     execution_time = stop - start
