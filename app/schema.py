@@ -753,3 +753,210 @@ NUTRITION_GOALS_SCHEMA = [
         "description": "The users set calorie goal",
     },
 ]
+
+ACTIVITY_LOGS_TABLE = "activity_logs"
+ACTIVITY_LOGS_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "description": "Primary Key",
+    },
+    {
+        "name": "date",
+        "type": "DATE",
+        "description": "The date values were extracted",
+    },
+    {
+        "name": "activity_id",
+        "type": "INTEGER",
+        "description": "The ID of the activity.",
+    },
+    {
+        "name": "activity_parent_id",
+        "type": "INTEGER",
+        "description": 'The ID of the top level ("parent") activity.',
+    },
+    {
+        "name": "activity_parent_name",
+        "type": "STRING",
+        "description": 'The name of the top level ("parent") activity.',
+    },
+    {
+        "name": "calories",
+        "type": "INTEGER",
+        "description": "Number of calories burned during the exercise.",
+    },
+    {
+        "name": "description",
+        "type": "STRING",
+        "description": "The description of the recorded exercise.",
+    },
+    {
+        "name": "distance",
+        "type": "FLOAT",
+        "description": "The distance traveled during the recorded exercise.",
+    },
+    {
+        "name": "duration",
+        "type": "INTEGER",
+        "description": "The activeDuration (milliseconds) + any pauses that occurred during the activity recording.",
+    },
+    {
+        "name": "has_active_zone_minutes",
+        "type": "BOOLEAN",
+        "description": "True | False",
+    },
+    {
+        "name": "has_start_time",
+        "type": "BOOLEAN",
+        "description": "True | False",
+    },
+    {
+        "name": "is_favorite",
+        "type": "BOOLEAN",
+        "description": "True | False",
+    },
+    # {'name': 'last_modified', 'type': 'TIMESTAMP', 'description':'Timestamp the exercise was last modified.'},
+    {
+        "name": "log_id",
+        "type": "INTEGER",
+        "description": "The activity log identifier for the exercise.",
+    },
+    {
+        "name": "name",
+        "type": "STRING",
+        "description": "Name of the recorded exercise.",
+    },
+    {
+        "name": "start_datetime",
+        "type": "TIMESTAMP",
+        "description": "The start time of the recorded exercise.",
+    },
+    {
+        "name": "steps",
+        "type": "INTEGER",
+        "description": "User defined goal for daily step count.",
+    },
+]
+
+ACTIVITY_SUMMARY_TABLE = "activity_summary"
+ACTIVITY_SUMMARY_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "mode": "REQUIRED",
+        "description": "Primary Key",
+    },
+    {
+        "name": "date",
+        "type": "DATE",
+        "mode": "REQUIRED",
+        "description": "The date values were extracted",
+    },
+    {
+        "name": "activity_score",
+        "type": "INTEGER",
+        "description": "No Description",
+    },
+    {
+        "name": "activity_calories",
+        "type": "INTEGER",
+        "description": "The number of calories burned for the day during periods the user was active above sedentary level. This includes both activity burned calories and BMR.",
+    },
+    {
+        "name": "calories_bmr",
+        "type": "INTEGER",
+        "description": "Total BMR calories burned for the day.",
+    },
+    {
+        "name": "calories_out",
+        "type": "INTEGER",
+        "description": "Total calories burned for the day (daily timeseries total).",
+    },
+    {
+        "name": "elevation",
+        "type": "INTEGER",
+        "description": "The elevation traveled for the day.",
+    },
+    {
+        "name": "fairly_active_minutes",
+        "type": "INTEGER",
+        "description": "Total minutes the user was fairly/moderately active.",
+    },
+    {
+        "name": "floors",
+        "type": "INTEGER",
+        "description": "The equivalent floors climbed for the day.",
+    },
+    {
+        "name": "lightly_active_minutes",
+        "type": "INTEGER",
+        "description": "	Total minutes the user was lightly active.",
+    },
+    {
+        "name": "marginal_calories",
+        "type": "INTEGER",
+        "description": "Total marginal estimated calories burned for the day.",
+    },
+    {
+        "name": "resting_heart_rate",
+        "type": "INTEGER",
+        "description": "The resting heart rate for the day",
+    },
+    {
+        "name": "sedentary_minutes",
+        "type": "INTEGER",
+        "description": "Total minutes the user was sedentary.",
+    },
+    {
+        "name": "very_active_minutes",
+        "type": "INTEGER",
+        "description": "Total minutes the user was very active.",
+    },
+    {
+        "name": "steps",
+        "type": "INTEGER",
+        "description": "Total steps taken for the day.",
+    },
+]
+
+ACTIVITY_GOALS_TABLE = "activity_goals"
+ACTIVITY_GOALS_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "mode": "REQUIRED",
+        "description": "Primary Key",
+    },
+    {
+        "name": "date",
+        "type": "DATE",
+        "mode": "REQUIRED",
+        "description": "The date values were extracted",
+    },
+    {
+        "name": "active_minutes",
+        "type": "INTEGER",
+        "description": "User defined goal for daily active minutes.",
+    },
+    {
+        "name": "calories_out",
+        "type": "INTEGER",
+        "description": "User defined goal for daily calories burned.",
+    },
+    {
+        "name": "distance",
+        "type": "FLOAT",
+        "description": "User defined goal for daily distance traveled.",
+    },
+    {
+        "name": "floors",
+        "type": "INTEGER",
+        "description": "User defined goal for daily floor count.",
+    },
+    {
+        "name": "steps",
+        "type": "INTEGER",
+        "description": "User defined goal for daily step count.",
+    },
+]

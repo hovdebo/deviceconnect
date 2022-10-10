@@ -39,12 +39,6 @@ Routes:
 
     /fitbit_nutrition_scope: nutrition data
 
-
-
-
-
-
-
 Dependencies:
 
     - fitbit application configuration is required to access the
@@ -98,6 +92,7 @@ if not bigquery_datasetname:
 def _tablename(table: str) -> str:
     return bigquery_datasetname + "." + table
 
+
 def _normalize_response(df, column_list, email, date_pulled):
     for col in column_list:
         if col not in df.columns:
@@ -111,7 +106,6 @@ def _normalize_response(df, column_list, email, date_pulled):
 
 def _date_pulled():
     """set the date pulled"""
-
     date_pulled = date.today() - timedelta(days=1)
     return date_pulled.strftime("%Y-%m-%d")
 
@@ -308,7 +302,6 @@ def fitbit_intraday_scope():
     fitbit_bp.storage.user = None
 
     return "Intraday Scope Loaded"
-
 
 
 # Not touched yet
@@ -824,253 +817,9 @@ def fitbit_activity_scope():
 
     # bulk_omh_activity_df = pd.concat(omh_activity_list, axis=0)
 
-    if len(activities_list) > 0:
-
-        try:
-
-            bulk_activities_df = pd.concat(activities_list, axis=0)
-
-            pandas_gbq.to_gbq(
-                dataframe=bulk_activities_df,
-                destination_table=_tablename("activity_logs"),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=[
-                    {
-                        "name": "id",
-                        "type": "STRING",
-                        "description": "Primary Key",
-                    },
-                    {
-                        "name": "date",
-                        "type": "DATE",
-                        "description": "The date values were extracted",
-                    },
-                    {
-                        "name": "activity_id",
-                        "type": "INTEGER",
-                        "description": "The ID of the activity.",
-                    },
-                    {
-                        "name": "activity_parent_id",
-                        "type": "INTEGER",
-                        "description": 'The ID of the top level ("parent") activity.',
-                    },
-                    {
-                        "name": "activity_parent_name",
-                        "type": "STRING",
-                        "description": 'The name of the top level ("parent") activity.',
-                    },
-                    {
-                        "name": "calories",
-                        "type": "INTEGER",
-                        "description": "Number of calories burned during the exercise.",
-                    },
-                    {
-                        "name": "description",
-                        "type": "STRING",
-                        "description": "The description of the recorded exercise.",
-                    },
-                    {
-                        "name": "distance",
-                        "type": "FLOAT",
-                        "description": "The distance traveled during the recorded exercise.",
-                    },
-                    {
-                        "name": "duration",
-                        "type": "INTEGER",
-                        "description": "The activeDuration (milliseconds) + any pauses that occurred during the activity recording.",
-                    },
-                    {
-                        "name": "has_active_zone_minutes",
-                        "type": "BOOLEAN",
-                        "description": "True | False",
-                    },
-                    {
-                        "name": "has_start_time",
-                        "type": "BOOLEAN",
-                        "description": "True | False",
-                    },
-                    {
-                        "name": "is_favorite",
-                        "type": "BOOLEAN",
-                        "description": "True | False",
-                    },
-                    # {'name': 'last_modified', 'type': 'TIMESTAMP', 'description':'Timestamp the exercise was last modified.'},
-                    {
-                        "name": "log_id",
-                        "type": "INTEGER",
-                        "description": "The activity log identifier for the exercise.",
-                    },
-                    {
-                        "name": "name",
-                        "type": "STRING",
-                        "description": "Name of the recorded exercise.",
-                    },
-                    {
-                        "name": "start_datetime",
-                        "type": "TIMESTAMP",
-                        "description": "The start time of the recorded exercise.",
-                    },
-                    {
-                        "name": "steps",
-                        "type": "INTEGER",
-                        "description": "User defined goal for daily step count.",
-                    },
-                ],
-            )
-
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
-
-    if len(activity_summary_list) > 0:
-
-        try:
-
-            bulk_activity_summary_df = pd.concat(activity_summary_list, axis=0)
-
-            pandas_gbq.to_gbq(
-                dataframe=bulk_activity_summary_df,
-                destination_table=_tablename("activity_summary"),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=[
-                    {
-                        "name": "id",
-                        "type": "STRING",
-                        "mode": "REQUIRED",
-                        "description": "Primary Key",
-                    },
-                    {
-                        "name": "date",
-                        "type": "DATE",
-                        "mode": "REQUIRED",
-                        "description": "The date values were extracted",
-                    },
-                    {
-                        "name": "activity_score",
-                        "type": "INTEGER",
-                        "description": "No Description",
-                    },
-                    {
-                        "name": "activity_calories",
-                        "type": "INTEGER",
-                        "description": "The number of calories burned for the day during periods the user was active above sedentary level. This includes both activity burned calories and BMR.",
-                    },
-                    {
-                        "name": "calories_bmr",
-                        "type": "INTEGER",
-                        "description": "Total BMR calories burned for the day.",
-                    },
-                    {
-                        "name": "calories_out",
-                        "type": "INTEGER",
-                        "description": "Total calories burned for the day (daily timeseries total).",
-                    },
-                    {
-                        "name": "elevation",
-                        "type": "INTEGER",
-                        "description": "The elevation traveled for the day.",
-                    },
-                    {
-                        "name": "fairly_active_minutes",
-                        "type": "INTEGER",
-                        "description": "Total minutes the user was fairly/moderately active.",
-                    },
-                    {
-                        "name": "floors",
-                        "type": "INTEGER",
-                        "description": "The equivalent floors climbed for the day.",
-                    },
-                    {
-                        "name": "lightly_active_minutes",
-                        "type": "INTEGER",
-                        "description": "	Total minutes the user was lightly active.",
-                    },
-                    {
-                        "name": "marginal_calories",
-                        "type": "INTEGER",
-                        "description": "Total marginal estimated calories burned for the day.",
-                    },
-                    {
-                        "name": "resting_heart_rate",
-                        "type": "INTEGER",
-                        "description": "The resting heart rate for the day",
-                    },
-                    {
-                        "name": "sedentary_minutes",
-                        "type": "INTEGER",
-                        "description": "Total minutes the user was sedentary.",
-                    },
-                    {
-                        "name": "very_active_minutes",
-                        "type": "INTEGER",
-                        "description": "Total minutes the user was very active.",
-                    },
-                    {
-                        "name": "steps",
-                        "type": "INTEGER",
-                        "description": "Total steps taken for the day.",
-                    },
-                ],
-            )
-
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
-
-    if len(activity_goals_list) > 0:
-
-        try:
-
-            bulk_activity_goals_df = pd.concat(activity_goals_list, axis=0)
-
-            pandas_gbq.to_gbq(
-                dataframe=bulk_activity_goals_df,
-                destination_table=_tablename("activity_goals"),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=[
-                    {
-                        "name": "id",
-                        "type": "STRING",
-                        "mode": "REQUIRED",
-                        "description": "Primary Key",
-                    },
-                    {
-                        "name": "date",
-                        "type": "DATE",
-                        "mode": "REQUIRED",
-                        "description": "The date values were extracted",
-                    },
-                    {
-                        "name": "active_minutes",
-                        "type": "INTEGER",
-                        "description": "User defined goal for daily active minutes.",
-                    },
-                    {
-                        "name": "calories_out",
-                        "type": "INTEGER",
-                        "description": "User defined goal for daily calories burned.",
-                    },
-                    {
-                        "name": "distance",
-                        "type": "FLOAT",
-                        "description": "User defined goal for daily distance traveled.",
-                    },
-                    {
-                        "name": "floors",
-                        "type": "INTEGER",
-                        "description": "User defined goal for daily floor count.",
-                    },
-                    {
-                        "name": "steps",
-                        "type": "INTEGER",
-                        "description": "User defined goal for daily step count.",
-                    },
-                ],
-            )
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
+    _write_to_bq(activities_list, schema.ACTIVITY_LOGS_TABLE, project_id, schema.ACTIVITY_LOGS_SCHEMA)
+    _write_to_bq(activity_summary_list, schema.ACTIVITY_SUMMARY_TABLE, project_id, schema.ACTIVITY_SUMMARY_SCHEMA)
+    _write_to_bq(activity_goals_list, schema.ACTIVITY_GOALS_TABLE, project_id, schema.ACTIVITY_GOALS_SCHEMA)
 
     stop = timeit.default_timer()
     execution_time = stop - start
@@ -1079,5 +828,3 @@ def fitbit_activity_scope():
     fitbit_bp.storage.user = None
 
     return "Activity Scope Loaded"
-
-
