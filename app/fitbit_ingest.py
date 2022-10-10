@@ -128,7 +128,7 @@ def fitbit_heart_rate_scope():
 
         try:
             resp = fitbit.get(
-                "1/user/-/activities/heart/date/" + date_pulled + "/1d.json"
+                "1.2/user/-/activities/heart/date/" + date_pulled + "/1d.json"
             )
 
             log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
@@ -204,7 +204,7 @@ def fitbit_sleep_scope():
 
         try:
 
-            resp = fitbit.get("/1/user/-/sleep/date/" + date_pulled + ".json")
+            resp = fitbit.get("/1.2/user/-/sleep/date/" + date_pulled + ".json")
 
             log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
 
