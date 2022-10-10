@@ -61,7 +61,7 @@ class SleepLog:
                 "type"
             ]
 
-            meta_df.drop(columns=meta_cols)
+            meta_df.drop(columns=meta_cols, inplace=True)
 
             for column in meta_df.columns:
                 print(column, meta_df[column].iloc[0])
