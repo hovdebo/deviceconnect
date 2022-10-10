@@ -162,7 +162,7 @@ INTRADAY_DISTANCE_SCHEMA = [
     },
     {
         "name": "distance",
-        "type": "INTEGER",
+        "type": "FLOAT",
         "description": "Number of distance in the interval"
     },
 ]
@@ -181,7 +181,7 @@ INTRADAY_ELEVATION_SCHEMA = [
     },
     {
         "name": "elevation",
-        "type": "INTEGER",
+        "type": "FLOAT",
         "description": "Number of elevation in the interval"
     },
 ]
@@ -200,7 +200,7 @@ INTRADAY_CALORIES_SCHEMA = [
     },
     {
         "name": "calories",
-        "type": "INTEGER",
+        "type": "FLOAT",
         "description": "Number of calories in the interval"
     },
     {
