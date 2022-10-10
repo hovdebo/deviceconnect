@@ -75,8 +75,8 @@ from skimpy import clean_columns
 
 from .fitbit_auth import fitbit_bp
 
-import schema
-import fitbit_classes
+from . import schema
+from . import fitbit_classes
 
 log = logging.getLogger(__name__)
 
