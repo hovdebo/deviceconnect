@@ -443,10 +443,10 @@ def fitbit_intraday_scope():
         except Exception as e:
             log.error("exception occurred: %s", str(e))
 
-    if len(intraday_floors_list) > 0:
+    if len(intraday_elevation_list) > 0:
         try:
-            bulk_df = pd.concat(intraday_floors_list, axis=0)
-            print("Floors")
+            bulk_df = pd.concat(intraday_elevation_list, axis=0)
+            print("elevation")
             pandas_gbq.to_gbq(
                 dataframe=bulk_df,
                 destination_table=_tablename(schema.INTRADAY_ELEVATION_TABLE),
