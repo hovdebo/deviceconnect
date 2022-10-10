@@ -116,6 +116,17 @@ def _date_pulled():
     return date_pulled.strftime("%Y-%m-%d")
 
 
+def _process_request(request):
+    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    # if caller provided date as query params, use that otherwise use yesterday
+    date_pulled = request.args.get("date", _date_pulled())
+    user_list = fitbit_bp.storage.all_users()
+    if request.args.get("user") in user_list:
+        user_list = [request.args.get("user")]
+
+    return project_id, date_pulled, user_list
+
+
 def _write_to_bq(df_list, table_name, project_id, table_schema):
     if len(df_list) > 0:
         try:
@@ -134,12 +145,7 @@ def _write_to_bq(df_list, table_name, project_id, table_schema):
 @bp.route("/fitbit_heart_rate_scope")
 def fitbit_heart_rate_scope():
     start = timeit.default_timer()
-    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
-    # if caller provided date as query params, use that otherwise use yesterday
-    date_pulled = request.args.get("date", _date_pulled())
-    user_list = fitbit_bp.storage.all_users()
-    if request.args.get("user") in user_list:
-        user_list = [request.args.get("user")]
+    project_id, date_pulled, user_list = _process_request(request)
 
     hr_zones_list = []
     hr_list = []
@@ -184,12 +190,7 @@ def fitbit_heart_rate_scope():
 @bp.route("/fitbit_sleep_scope")
 def fitbit_sleep_scope():
     start = timeit.default_timer()
-    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
-    # if caller provided date as query params, use that otherwise use yesterday
-    date_pulled = request.args.get("date", _date_pulled())
-    user_list = fitbit_bp.storage.all_users()
-    if request.args.get("user") in user_list:
-        user_list = [request.args.get("user")]
+    project_id, date_pulled, user_list = _process_request(request)
 
     sleep_meta_list = []
     sleep_stage_list = []
@@ -239,16 +240,8 @@ def fitbit_sleep_scope():
 
 @bp.route("/fitbit_intraday_scope")
 def fitbit_intraday_scope():
-
     start = timeit.default_timer()
-    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
-    # if caller provided date as query params, use that otherwise use yesterday
-    date_pulled = request.args.get("date", _date_pulled())
-    user_list = fitbit_bp.storage.all_users()
-    if request.args.get("user") in user_list:
-        user_list = [request.args.get("user")]
-
-    pd.set_option("display.max_columns", 500)
+    project_id, date_pulled, user_list = _process_request(request)
 
     intraday_hrv_list = []
     intraday_spo2_list = []
@@ -365,25 +358,13 @@ def ingest():
     return str(result)
 
 
-
-
 #
 # Chunk 1: Badges, Social, Device
 #
 @bp.route("/fitbit_chunk_1")
 def fitbit_chunk_1():
-
     start = timeit.default_timer()
-    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
-    # if caller provided date as query params, use that otherwise use yesterday
-    date_pulled = request.args.get("date", _date_pulled())
-    user_list = fitbit_bp.storage.all_users()
-    if request.args.get("user") in user_list:
-        user_list = [request.args.get("user")]
-
-    log.debug("fitbit_chunk_1:")
-
-    pd.set_option("display.max_columns", 500)
+    project_id, date_pulled, user_list = _process_request(request)
 
     badges_list = []
     device_list = []
@@ -531,16 +512,8 @@ def fitbit_chunk_1():
 #
 @bp.route("/fitbit_body_weight")
 def fitbit_body_weight():
-
     start = timeit.default_timer()
-    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
-    # if caller provided date as query params, use that otherwise use yesterday
-    date_pulled = request.args.get("date", _date_pulled())
-    user_list = fitbit_bp.storage.all_users()
-    if request.args.get("user") in user_list:
-        user_list = [request.args.get("user")]
-
-    pd.set_option("display.max_columns", 500)
+    project_id, date_pulled, user_list = _process_request(request)
 
     body_weight_df_list = []
 
@@ -597,16 +570,8 @@ def fitbit_body_weight():
 #
 @bp.route("/fitbit_nutrition_scope")
 def fitbit_nutrition_scope():
-
     start = timeit.default_timer()
-    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
-    # if caller provided date as query params, use that otherwise use yesterday
-    date_pulled = request.args.get("date", _date_pulled())
-    user_list = fitbit_bp.storage.all_users()
-    if request.args.get("user") in user_list:
-        user_list = [request.args.get("user")]
-
-    pd.set_option("display.max_columns", 500)
+    project_id, date_pulled, user_list = _process_request(request)
 
     nutrition_summary_list = []
     nutrition_logs_list = []
@@ -725,22 +690,14 @@ def fitbit_nutrition_scope():
 
     return "Nutrition Scope Loaded"
 
+
 #
 # Activity Data
 #
 @bp.route("/fitbit_activity_scope")
 def fitbit_activity_scope():
-
     start = timeit.default_timer()
-    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
-
-    # if caller provided date as query params, use that otherwise use yesterday
-    date_pulled = request.args.get("date", _date_pulled())
-    user_list = fitbit_bp.storage.all_users()
-    if request.args.get("user") in user_list:
-        user_list = [request.args.get("user")]
-
-    pd.set_option("display.max_columns", 500)
+    project_id, date_pulled, user_list = _process_request(request)
 
     activities_list = []
     activity_summary_list = []
