@@ -392,6 +392,7 @@ def fitbit_intraday_scope():
             intraday = fitbit_classes.IntradayCalories(resp.json())
             intraday.activities_df.insert(0, "id", user)
             intraday_calories_list.append(intraday.activities_df)
+            print("Calories df", intraday.activities_df)
         except Exception as e:
             log.error("exception occurred: %s", str(e))
 
