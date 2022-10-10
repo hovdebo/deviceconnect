@@ -43,7 +43,9 @@ class SleepLog:
             summary_df = clean_columns(summary_df)
 
             meta_df = meta_df.join(summary_df)
+            print(meta_df)
             meta_df.drop(columns=["date_of_sleep"], inplace=True)
+
 
 
             meta_dfs.append(meta_df)
