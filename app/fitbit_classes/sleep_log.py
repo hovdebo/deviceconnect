@@ -11,7 +11,6 @@ class SleepLog:
     ]
 
     def __init__(self, json_dict):
-
         sleeps = json_dict["sleep"]
         meta_cols = [
             "dateOfSleep",
@@ -34,6 +33,7 @@ class SleepLog:
         meta_dfs = []
         stage_dfs = []
         for sleep in sleeps:
+            print(sleep)
             meta_dict = {key: sleep[key] for key in meta_cols}
             meta_df = clean_columns(pd.json_normalize(meta_dict))
             meta_df["end_time"] = pd.to_datetime(meta_df["end_time"])
@@ -52,51 +52,6 @@ class SleepLog:
 
         self.meta_df = pd.concat(meta_dfs)
         self.stage_df = pd.concat(stage_dfs)
-        for column in self.meta_df.columns:
-            print(column, self.meta_df[column].iloc[0])
-
-        #print(self.meta_df)
-        #print(self.stage_df)
-        #all = pd.json_normalize(sleeps, record_path=["levels", "data"], meta=meta_cols)
-
-        #print(all)
-        # for sleep in sleeps:
-        #     date = sleep["dateOfSleep"]
-        #     duration = sleep["duration"]
-        #     efficiency = sleep["efficiency"]
-        #     end_time = parser.parse(sleep["endTime"])
-        #     info_code = sleep["infoCode"]
-        #     is_main_sleep = sleep["isMainSleep"]
-        #     log_id = sleep["logId"]
-        #     minutes_after_wakeup = sleep["minutesAfterWakeup"]
-        #     minutes_asleep = sleep["minutesAsleep"]
-        #     minutes_awake = sleep["minutesAwake"]
-        #     minutes_to_fall_asleep = sleep["minutesToFallAsleep"]
-        #     log_type = sleep["logType"]
-        #     start_time = parser.parse(sleep["startTime"])
-        #     time_in_bed = sleep["timeInBed"]
-        #     type = sleep["type"]
-        #
-        # levels = sleep["levels"]
-        # data_df = pd.json_normalize(levels["data"])
-        # self.data_df.rename(columns={"dateTime": "time"}, inplace=True)
-        # data_df["time"] = pd.to_datetime(self.data_df["time"])
-        #
-        # short_data_df = None
-        # if self.type == "stages":
-        #     short_data_df = pd.json_normalize(levels["shortData"])
-        #     self.short_data_df.rename(columns={"dateTime": "time"}, inplace=True)
-        #     short_data_df["time"] = pd.to_datetime(self.short_data_df["time"])
-        #
-        # summary = levels["summary"]
-        # summary_df = pd.DataFrame(summary).transpose()
-        # summary_df["time"] = pd.to_datetime(self.date)
-        # summary_df.index.name = "stage"
-        # self.summary_df.reset_index(inplace=True)
-        #
-        # print(self.summary_df)
-        # print(self.short_data_df)
-        # print(self.data_df)
 
 
 if __name__ == "__main__":
