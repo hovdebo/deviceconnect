@@ -9,6 +9,7 @@ dist
 build
 *.egg-info
 *-service-account.json
+service-account.json
 .env
 .env.*
 .env-*
