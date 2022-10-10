@@ -55,10 +55,10 @@ class SleepLog:
                 #"minutes_asleep",
                 #"minutes_awake",
                 #"minutes_to_fall_asleep",
-                "log_type",
+                #"log_type",
                 "start_time",
-                "time_in_bed",
-                "type"
+                #"time_in_bed",
+                #"type"
             ]
 
             meta_df.drop(columns=meta_cols, inplace=True)
