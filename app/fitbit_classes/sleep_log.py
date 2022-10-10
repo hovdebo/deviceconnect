@@ -43,6 +43,8 @@ class SleepLog:
             summary_df = clean_columns(summary_df)
             meta_df = meta_df.join(summary_df)
 
+            meta_df.drop(columns=["start_time", "end_time", "is_main_sleep"])
+
             for column in meta_df.columns:
                 print(column, meta_df[column].iloc[0])
             meta_dfs.append(meta_df)
