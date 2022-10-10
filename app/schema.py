@@ -1,6 +1,7 @@
 
 
-ZONE = [
+ZONE_TABLE = ""
+ZONE_SCHEMA = [
     {
         "name": "id",
         "type": "STRING",
@@ -33,7 +34,8 @@ ZONE = [
     }
 ]
 
-HEART_RATE = [
+HEART_RATE_TABLE = "heart_rate"
+HEART_RATE_SCHEMA = [
     {
         "name": "id",
         "type": "STRING",
@@ -51,7 +53,8 @@ HEART_RATE = [
     },
 ]
 
-HRV = [
+HRV_TABLE = "hrv"
+HRV_SCHEMA = [
     {
         "name": "id",
         "type": "STRING",
@@ -85,7 +88,8 @@ HRV = [
     },
 ]
 
-SLEEP_STAGES = [
+SLEEP_STAGES_TABLE = "sleep_stages"
+SLEEP_STAGES_SCHEMA = [
     {
         "name": "id",
         "type": "STRING",
@@ -113,17 +117,18 @@ SLEEP_STAGES = [
     }
 ]
 
-SLEEP_RECORDS = [
+SLEEP_RECORDS_TABLE = "sleep"
+SLEEP_RECORDS_SCHEMA = [
     {
         "name": "id",
         "type": "STRING",
         "description": "User id, Primary Key",
     },
-    {
-        "name": "date_of_sleep",
-        "type": "DATE",
-        "description": "Date at which the sleep log ended."
-    },
+    #{
+    #    "name": "date_of_sleep",
+    #    "type": "DATE",
+    #    "description": "Date at which the sleep log ended."
+    #},
     {
         "name": "duration",
         "type": "INTEGER",

@@ -108,6 +108,7 @@ def _date_pulled():
     date_pulled = date.today() - timedelta(days=1)
     return date_pulled.strftime("%Y-%m-%d")
 
+
 @bp.route("/fitbit_heart_rate_scope")
 def fitbit_heart_rate_scope():
     start = timeit.default_timer()
@@ -152,10 +153,10 @@ def fitbit_heart_rate_scope():
             bulk_hr_zones_df = pd.concat(hr_zones_list, axis=0)
             pandas_gbq.to_gbq(
                 dataframe=bulk_hr_zones_df,
-                destination_table=_tablename("heart_rate_zones"),
+                destination_table=_tablename(schema.ZONE_TABLE),
                 project_id=project_id,
                 if_exists="append",
-                table_schema=schema.ZONE
+                table_schema=schema.ZONE_SCHEMA
             )
         except Exception as e:
             log.error("exception occurred: %s", str(e))
@@ -165,10 +166,10 @@ def fitbit_heart_rate_scope():
             bulk_hr_intraday_df = pd.concat(hr_list, axis=0)
             pandas_gbq.to_gbq(
                 dataframe=bulk_hr_intraday_df,
-                destination_table=_tablename("heart_rate"),
+                destination_table=_tablename(schema.HEART_RATE_TABLE),
                 project_id=project_id,
                 if_exists="append",
-                table_schema=schema.HEART_RATE
+                table_schema=schema.HEART_RATE_SCHEMA
             )
         except Exception as e:
             log.error("exception occurred: %s", str(e))
@@ -233,10 +234,10 @@ def fitbit_sleep_scope():
 
             pandas_gbq.to_gbq(
                 dataframe=bulk_df,
-                destination_table=_tablename("sleep_stages"),
+                destination_table=_tablename(schema.SLEEP_STAGES_TABLE),
                 project_id=project_id,
                 if_exists="append",
-                table_schema=schema.SLEEP_STAGES
+                table_schema=schema.SLEEP_STAGES_SCHEMA
             )
 
         except Exception as e:
@@ -248,10 +249,10 @@ def fitbit_sleep_scope():
             bulk_df = pd.concat(sleep_meta_list, axis=0)
             pandas_gbq.to_gbq(
                 dataframe=bulk_df,
-                destination_table=_tablename("sleep"),
+                destination_table=_tablename(schema.SLEEP_RECORDS_TABLE),
                 project_id=project_id,
                 if_exists="append",
-                table_schema=schema.SLEEP_RECORDS
+                table_schema=schema.SLEEP_RECORDS_SCHEMA
             )
 
         except Exception as e:
