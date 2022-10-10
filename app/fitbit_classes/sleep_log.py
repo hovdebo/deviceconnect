@@ -33,7 +33,6 @@ class SleepLog:
         meta_dfs = []
         stage_dfs = []
         for sleep in sleeps:
-            print(sleep)
             meta_dict = {key: sleep[key] for key in meta_cols}
             meta_df = clean_columns(pd.json_normalize(meta_dict))
             meta_df["end_time"] = pd.to_datetime(meta_df["end_time"])

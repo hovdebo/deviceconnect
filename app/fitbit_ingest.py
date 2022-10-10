@@ -26,17 +26,23 @@ Routes:
     /update_tokens: will refresh all fitbit tokens to ensure they are valid
         when being used.
 
+
+    /fitbit_heart_rate_scope: heart rate information
+    /fitbit_sleep_scope:  sleep data
+
+
+
     /fitbit_chunk_1: Badges, Social, Device information
 
     /fitbit_body_weight: body and weight data
 
     /fitbit_nutrition_scope: nutrition data
 
-    /fitbit_heart_rate_scope: heart rate information
+
 
     /fitbit_intraday_scope: includes intraday heartrate and steps
 
-    /fitbit_sleep_scope:  sleep data
+
 
 Dependencies:
 
@@ -1561,6 +1567,7 @@ def fitbit_intraday_scope():
     intraday_distance_list = []
     intraday_elevation_list = []
     intraday_floors_list = []
+    intraday_hrv_list = []
 
     for user in user_list:
 
@@ -1570,6 +1577,19 @@ def fitbit_intraday_scope():
 
         if fitbit_bp.session.token:
             del fitbit_bp.session.token
+
+        try:
+            resp = fitbit.get(
+                "/1/user/-/hrv/date/"
+                + date_pulled
+                + "/all.json"
+            )
+            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
+            intraday_hrv = fitbit_classes.IntradayHrv(resp.json())
+            intraday_hrv.hrv_df.insert(0, "id", user)
+            intraday_hrv_list.append(intraday_hrv.hrv_df)
+        except Exception as e:
+            log.error("exception occured: %s", str(e))
 
         try:
 
@@ -1719,6 +1739,20 @@ def fitbit_intraday_scope():
     fitbit_stop = timeit.default_timer()
     fitbit_execution_time = fitbit_stop - start
     print("Intraday Scope: " + str(fitbit_execution_time))
+
+    if len(intraday_hrv_list) > 0:
+        try:
+            bulk_df = pd.concat(intraday_hrv_list, axis=0)
+
+            pandas_gbq.to_gbq(
+                dataframe=bulk_df,
+                destination_table=_tablename(schema.HRV_TABLE),
+                project_id=project_id,
+                if_exists="append",
+                table_schema=schema.HRV_SCHEMA
+            )
+        except Exception as e:
+            log.error("exception occured: %s", str(e))
 
     if len(intraday_steps_list) > 0:
 
