@@ -15,7 +15,7 @@
 """routes for fitbit data ingestion into bigquery
 
 provides several routes used to query fitbit web apis
-and process and ingest data into bigquery tables.  Typically
+and process and ingest data into bigquery tables.  Typically,
 this would be provided only for administrative access or
 run on a schedule.
 
@@ -71,7 +71,6 @@ import pandas as pd
 import pandas_gbq
 from flask import Blueprint, request
 from flask_dance.contrib.fitbit import fitbit
-from authlib.integrations.flask_client import OAuth
 from skimpy import clean_columns
 
 from .fitbit_auth import fitbit_bp
@@ -81,16 +80,15 @@ from . import fitbit_classes
 
 log = logging.getLogger(__name__)
 
-
 bp = Blueprint("fitbit_ingest_bp", __name__)
 
-bigquery_datasetname = os.environ.get("BIGQUERY_DATASET")
-if not bigquery_datasetname:
-    bigquery_datasetname = "fitbit2"
+bigquery_dataset_name = os.environ.get("BIGQUERY_DATASET")
+if not bigquery_dataset_name:
+    bigquery_dataset_name = "fitbit2"
 
 
-def _tablename(table: str) -> str:
-    return bigquery_datasetname + "." + table
+def _table_name(table: str) -> str:
+    return bigquery_dataset_name + "." + table
 
 
 def _normalize_response(df, column_list, email, date_pulled):
@@ -127,7 +125,7 @@ def _write_to_bq(df_list, table_name, project_id, table_schema):
             bulk_df = pd.concat(df_list, axis=0)
             pandas_gbq.to_gbq(
                 dataframe=bulk_df,
-                destination_table=_tablename(table_name),
+                destination_table=_table_name(table_name),
                 project_id=project_id,
                 if_exists="append",
                 table_schema=table_schema
@@ -164,7 +162,7 @@ def fitbit_heart_rate_scope():
             intraday_hr.zones_df.insert(0, "id", user)
             hr_zones_list.append(intraday_hr.zones_df)
         except Exception as e:
-            log.error("exception occured: %s", str(e))
+            log.error("exception occurred: %s", str(e))
 
     load_stop = timeit.default_timer()
     time_to_load = load_stop - start
@@ -212,7 +210,7 @@ def fitbit_sleep_scope():
             sleep_meta_list.append(sleep.meta_df)
 
         except Exception as e:
-            log.error("exception occured: %s", str(e))
+            log.error("exception occurred: %s", str(e))
 
     # end loop over users
 
@@ -270,11 +268,11 @@ def fitbit_intraday_scope():
             del fitbit_bp.session.token
 
         for activity in activities:
+            url = activity[0]
+            class_type = activity[1]
+            df_list = activity[2]
+
             try:
-                url = activity[0]
-                class_type = activity[1]
-                df_list = activity[2]
-                
                 resp = fitbit.get(url)
                 log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
                 df = class_type(resp.json()).df
@@ -311,10 +309,10 @@ def ingest():
     """test route to ensure that blueprint is loaded"""
 
     result = []
-    allusers = fitbit_bp.storage.all_users()
-    log.debug(allusers)
+    all_users = fitbit_bp.storage.all_users()
+    log.debug(all_users)
 
-    for x in allusers:
+    for x in all_users:
 
         try:
 
@@ -345,8 +343,8 @@ def ingest():
                 f"{x}: {j['user']['fullName']} ({j['user']['gender']}/{j['user']['age']})"
             )
 
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
+        except Exception as e:
+            log.error("exception occurred: %s", str(e))
 
     return str(result)
 
@@ -373,9 +371,6 @@ def fitbit_chunk_1():
             del fitbit_bp.session.token
 
         try:
-
-            ############## CONNECT TO BADGES ENDPOINT #################
-
             resp = fitbit.get("/1/user/-/badges.json")
 
             log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
@@ -414,16 +409,15 @@ def fitbit_chunk_1():
             )
             try:
                 badges_df = badges_df.drop(["cheers"], axis=1)
-            except:
-                pass
+            except Exception as e:
+                log.error("exception occurred: %s", str(e))
 
             badges_list.append(badges_df)
 
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
+        except Exception as e:
+            log.error("exception occurred: %s", str(e))
 
         try:
-            ############## CONNECT TO DEVICE ENDPOINT #################
             resp = fitbit.get("1/user/-/devices.json")
 
             log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
@@ -433,8 +427,8 @@ def fitbit_chunk_1():
                 device_df = device_df.drop(
                     ["features", "id", "mac", "type"], axis=1
                 )
-            except:
-                pass
+            except Exception as e:
+                log.error("exception occurred: %s", str(e))
 
             device_columns = [
                 "battery",
@@ -450,11 +444,10 @@ def fitbit_chunk_1():
             )
             device_list.append(device_df)
 
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
+        except Exception as e:
+            log.error("exception occurred: %s", str(e))
 
         try:
-            ############## CONNECT TO SOCIAL ENDPOINT #################
             resp = fitbit.get("1.1/user/-/friends.json")
 
             log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
@@ -474,18 +467,14 @@ def fitbit_chunk_1():
             )
             social_list.append(social_df)
 
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
+        except Exception as e:
+            log.error("exception occurred: %s", str(e))
 
     # end loop over users
-
-    #### CONCAT DATAFRAMES INTO BULK DF ####
-
     load_stop = timeit.default_timer()
     time_to_load = load_stop - start
     print("Program Executed in " + str(time_to_load))
 
-    # ######## LOAD DATA INTO BIGQUERY #########
     log.debug("push to BQ")
     _write_to_bq(badges_list, schema.BADGES_TABLE, project_id, schema.BADGES_SCHEMA)
     _write_to_bq(device_list, schema.DEVICES_TABLE, project_id, schema.DEVICES_SCHEMA)
@@ -532,8 +521,8 @@ def fitbit_body_weight():
             body_weight_df = pd.json_normalize(body_weight)
             try:
                 body_weight_df = body_weight_df.drop(["date", "time"], axis=1)
-            except:
-                pass
+            except Exception as e:
+                log.error("exception occurred: %s", str(e))
 
             body_weight_columns = ["bmi", "fat", "logId", "source", "weight"]
             body_weight_df = _normalize_response(
@@ -541,8 +530,8 @@ def fitbit_body_weight():
             )
             body_weight_df_list.append(body_weight_df)
 
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
+        except Exception as e:
+            log.error("exception occurred: %s", str(e))
 
     # end loop over users
 
@@ -602,8 +591,8 @@ def fitbit_nutrition_scope():
                     ],
                     axis=1,
                 )
-            except:
-                pass
+            except Exception as e:
+                log.error("exception occurred: %s", str(e))
 
             nutrition_summary_columns = [
                 "calories",
@@ -649,8 +638,8 @@ def fitbit_nutrition_scope():
             nutrition_summary_list.append(nutrition_summary_df)
             nutrition_logs_list.append(nutrition_logs_df)
 
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
+        except Exception as e:
+            log.error("exception occurred: %s", str(e))
 
         try:
             resp = fitbit.get("/1/user/-/foods/log/goal.json")
@@ -665,12 +654,11 @@ def fitbit_nutrition_scope():
             )
             nutrition_goals_list.append(nutrition_goal_df)
 
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
+        except Exception as e:
+            log.error("exception occurred: %s", str(e))
 
     # end of loop over users
     log.debug("push to BQ")
-
     _write_to_bq(nutrition_summary_list, schema.NUTRITION_SUMMARY_TABLE, project_id, schema.NUTRITION_SUMMARY_SCHEMA)
     _write_to_bq(nutrition_logs_list, schema.NUTRITION_LOGS_TABLE, project_id, schema.NUTRITION_LOGS_SCHEMA)
     _write_to_bq(nutrition_goals_list, schema.NUTRITION_GOALS_TABLE, project_id, schema.NUTRITION_GOALS_SCHEMA)
@@ -694,9 +682,9 @@ def fitbit_activity_scope():
 
     activities_list = []
     activity_summary_list = []
-    activity_distance_list = []
+    # activity_distance_list = []
     activity_goals_list = []
-    omh_activity_list = []
+    # omh_activity_list = []
 
     for user in user_list:
 
@@ -715,7 +703,7 @@ def fitbit_activity_scope():
 
             log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
 
-            # subset response for activites, summary, and goals
+            # subset response for activities, summary, and goals
             activity_goals = resp.json()["goals"]
             activities = resp.json()["activities"]
             activity_summary = resp.json()["summary"]
@@ -738,16 +726,16 @@ def fitbit_activity_scope():
             #     "activity",
             #     "total_distance",
             #     "tracker_distance",
-            #     "logged_activites_distance",
+            #     "logged_activities_distance",
             #     "very_active_distance",
-            #     "moderetly_active_distance",
+            #     "moderately_active_distance",
             #     "lightly_active_distance",
             #     "sedentary_active_distance",
             # ]
 
             activities_df = pd.json_normalize(activities)
             # Define columns
-            activites_columns = [
+            activities_columns = [
                 "activityId",
                 "activityParentId",
                 "activityParentName",
@@ -766,7 +754,7 @@ def fitbit_activity_scope():
                 "steps",
             ]
             activities_df = _normalize_response(
-                activities_df, activites_columns, user, date_pulled
+                activities_df, activities_columns, user, date_pulled
             )
             activities_df["start_datetime"] = pd.to_datetime(
                 activities_df["start_date"] + " " + activities_df["start_time"]
@@ -780,8 +768,8 @@ def fitbit_activity_scope():
                 activity_summary_df = activity_summary_df.drop(
                     ["distances", "heartRateZones"], axis=1
                 )
-            except:
-                pass
+            except Exception as e:
+                log.error("exception occurred: %s", str(e))
 
             activity_summary_columns = [
                 "activeScore",
@@ -808,8 +796,8 @@ def fitbit_activity_scope():
             activity_summary_list.append(activity_summary_df)
             activity_goals_list.append(activity_goals_df)
 
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
+        except Exception as e:
+            log.error("exception occurred: %s", str(e))
 
     fitbit_stop = timeit.default_timer()
     fitbit_execution_time = fitbit_stop - start
