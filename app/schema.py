@@ -124,11 +124,11 @@ SLEEP_RECORDS_SCHEMA = [
         "type": "STRING",
         "description": "User id, Primary Key",
     },
-    #{
-    #    "name": "date_of_sleep",
-    #    "type": "DATE",
-    #    "description": "Date at which the sleep log ended."
-    #},
+    {
+        "name": "date_of_sleep",
+        "type": "DATE",
+        "description": "Date at which the sleep log ended."
+    },
     {
         "name": "duration",
         "type": "INTEGER",
