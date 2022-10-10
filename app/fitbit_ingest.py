@@ -76,7 +76,7 @@ from skimpy import clean_columns
 from .fitbit_auth import fitbit_bp
 
 import schema
-import fitbit as fitbit_classes
+import fitbit_classes
 
 log = logging.getLogger(__name__)
 
@@ -91,6 +91,190 @@ if not bigquery_datasetname:
 def _tablename(table: str) -> str:
     return bigquery_datasetname + "." + table
 
+def _normalize_response(df, column_list, email, date_pulled):
+    for col in column_list:
+        if col not in df.columns:
+            df[col] = None
+    df = df.reindex(columns=column_list)
+    df.insert(0, "id", email)
+    df.insert(1, "date", date_pulled)
+    df = clean_columns(df)
+    return df
+
+
+def _date_pulled():
+    """set the date pulled"""
+
+    date_pulled = date.today() - timedelta(days=1)
+    return date_pulled.strftime("%Y-%m-%d")
+
+@bp.route("/fitbit_heart_rate_scope")
+def fitbit_heart_rate_scope():
+    start = timeit.default_timer()
+    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    # if caller provided date as query params, use that otherwise use yesterday
+    date_pulled = request.args.get("date", _date_pulled())
+    user_list = fitbit_bp.storage.all_users()
+    if request.args.get("user") in user_list:
+        user_list = [request.args.get("user")]
+
+    hr_zones_list = []
+    hr_list = []
+    for user in user_list:
+        fitbit_bp.storage.user = user
+
+        if fitbit_bp.session.token:
+            del fitbit_bp.session.token
+
+        try:
+            resp = fitbit.get(
+                "1/user/-/activities/heart/date/" + date_pulled + "/1d.json"
+            )
+
+            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
+
+            intraday_hr = fitbit_classes.IntradayHeartRate(resp.json())
+
+            intraday_hr.heart_rate_df.insert(0, "id", user)
+            hr_list.append(intraday_hr.heart_rate_df)
+
+            intraday_hr.zones_df.insert(0, "id", user)
+            hr_zones_list.append(intraday_hr.zones_df)
+        except Exception as e:
+            log.error("exception occured: %s", str(e))
+
+    load_stop = timeit.default_timer()
+    time_to_load = load_stop - start
+    print("Heart Rate Zones " + str(time_to_load))
+
+    if len(hr_zones_list) > 0:
+        try:
+            bulk_hr_zones_df = pd.concat(hr_zones_list, axis=0)
+            pandas_gbq.to_gbq(
+                dataframe=bulk_hr_zones_df,
+                destination_table=_tablename("heart_rate_zones"),
+                project_id=project_id,
+                if_exists="append",
+                table_schema=schema.ZONE
+            )
+        except Exception as e:
+            log.error("exception occurred: %s", str(e))
+
+    if len(hr_list) > 0:
+        try:
+            bulk_hr_intraday_df = pd.concat(hr_list, axis=0)
+            pandas_gbq.to_gbq(
+                dataframe=bulk_hr_intraday_df,
+                destination_table=_tablename("heart_rate"),
+                project_id=project_id,
+                if_exists="append",
+                table_schema=schema.HEART_RATE
+            )
+        except Exception as e:
+            log.error("exception occurred: %s", str(e))
+
+    stop = timeit.default_timer()
+    execution_time = stop - start
+    print("Heart Rate Scope Loaded " + str(execution_time))
+
+    fitbit_bp.storage.user = None
+    return "Heart Rate Scope Loaded"
+
+
+@bp.route("/fitbit_sleep_scope")
+def fitbit_sleep_scope():
+    start = timeit.default_timer()
+    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    # if caller provided date as query params, use that otherwise use yesterday
+    date_pulled = request.args.get("date", _date_pulled())
+    user_list = fitbit_bp.storage.all_users()
+    if request.args.get("user") in user_list:
+        user_list = [request.args.get("user")]
+
+    sleep_meta_list = []
+    sleep_stage_list = []
+    for user in user_list:
+
+        log.debug("user: %s", user)
+
+        fitbit_bp.storage.user = user
+
+        if fitbit_bp.session.token:
+            del fitbit_bp.session.token
+
+        try:
+
+            resp = fitbit.get("/1/user/-/sleep/date/" + date_pulled + ".json")
+
+            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
+
+            sleep = fitbit_classes.SleepLog(resp.json())
+
+            sleep.stage_df.insert(0, "id", user)
+            sleep_stage_list.append(sleep.stage_df)
+
+            sleep.meta_df.insert(0, "id", user)
+            sleep_meta_list.append(sleep.meta_df)
+
+        except Exception as e:
+            log.error("exception occured: %s", str(e))
+
+    # end loop over users
+
+    fitbit_stop = timeit.default_timer()
+    fitbit_execution_time = fitbit_stop - start
+    print("Sleep Scope: " + str(fitbit_execution_time))
+
+    if len(sleep_stage_list) > 0:
+
+        try:
+
+            bulk_df = pd.concat(sleep_stage_list, axis=0)
+
+            pandas_gbq.to_gbq(
+                dataframe=bulk_df,
+                destination_table=_tablename("sleep_stages"),
+                project_id=project_id,
+                if_exists="append",
+                table_schema=schema.SLEEP_STAGES
+            )
+
+        except Exception as e:
+            log.error("exception occured: %s", str(e))
+
+    if len(sleep_meta_list) > 0:
+
+        try:
+            bulk_df = pd.concat(sleep_meta_list, axis=0)
+            pandas_gbq.to_gbq(
+                dataframe=bulk_df,
+                destination_table=_tablename("sleep"),
+                project_id=project_id,
+                if_exists="append",
+                table_schema=schema.SLEEP_RECORDS
+            )
+
+        except Exception as e:
+            log.error("exception occured: %s", str(e))
+
+    stop = timeit.default_timer()
+    execution_time = stop - start
+    print("Sleep Scope Loaded: " + str(execution_time))
+
+    fitbit_bp.storage.user = None
+
+    return "Sleep Scope Loaded"
+
+
+
+
+
+
+
+
+
+
+# Not touched yet
 
 @bp.route("/ingest")
 def ingest():
@@ -137,22 +321,6 @@ def ingest():
     return str(result)
 
 
-def _normalize_response(df, column_list, email, date_pulled):
-    for col in column_list:
-        if col not in df.columns:
-            df[col] = None
-    df = df.reindex(columns=column_list)
-    df.insert(0, "id", email)
-    df.insert(1, "date", date_pulled)
-    df = clean_columns(df)
-    return df
-
-
-def _date_pulled():
-    """set the date pulled"""
-
-    date_pulled = date.today() - timedelta(days=1)
-    return date_pulled.strftime("%Y-%m-%d")
 
 
 #
@@ -972,98 +1140,6 @@ def fitbit_nutrition_scope():
 
     return "Nutrition Scope Loaded"
 
-
-#
-# Heart Data
-#
-@bp.route("/fitbit_heart_rate_scope")
-def fitbit_heart_rate_scope():
-
-    start = timeit.default_timer()
-    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
-    # if caller provided date as query params, use that otherwise use yesterday
-    date_pulled = request.args.get("date", _date_pulled())
-    user_list = fitbit_bp.storage.all_users()
-    if request.args.get("user") in user_list:
-        user_list = [request.args.get("user")]
-
-    pd.set_option("display.max_columns", 500)
-
-    hr_zones_list = []
-    hr_list = []
-
-    for user in user_list:
-
-        log.debug("user: %s", user)
-
-        fitbit_bp.storage.user = user
-
-        if fitbit_bp.session.token:
-            del fitbit_bp.session.token
-
-        try:
-            resp = fitbit.get(
-                "1/user/-/activities/heart/date/" + date_pulled + "/1d.json"
-            )
-
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-
-            intraday_hr = fitbit_classes.IntradayHeartRate(resp.json())
-
-            intraday_hr.heart_rate_df.insert(0, "id", user)
-            hr_list.append(intraday_hr.heart_rate_df)
-
-            intraday_hr.zones_df.insert(0, "id", user)
-            hr_zones_list.append(intraday_hr.zones_df)
-        except Exception as e:
-            log.error("exception occured: %s", str(e))
-    # end loop over users
-
-    #### CONCAT DATAFRAMES INTO BULK DF ####
-    load_stop = timeit.default_timer()
-    time_to_load = load_stop - start
-    print("Heart Rate Zones " + str(time_to_load))
-
-    ######## LOAD DATA INTO BIGQUERY #########
-    if len(hr_zones_list) > 0:
-
-        try:
-            bulk_hr_zones_df = pd.concat(hr_zones_list, axis=0)
-
-            pandas_gbq.to_gbq(
-                dataframe=bulk_hr_zones_df,
-                destination_table=_tablename("heart_rate_zones"),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=schema.ZONE
-            )
-
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
-
-    if len(hr_list) > 0:
-
-        try:
-            bulk_hr_intraday_df = pd.concat(hr_list, axis=0)
-            pandas_gbq.to_gbq(
-                dataframe=bulk_hr_intraday_df,
-                destination_table=_tablename("heart_rate"),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=schema.HEART_RATE
-            )
-        except Exception as e:
-            log.error("exception occured: %s", str(e))
-
-    stop = timeit.default_timer()
-    execution_time = stop - start
-    print("Heart Rate Scope Loaded " + str(execution_time))
-
-    fitbit_bp.storage.user = None
-
-    return "Heart Rate Scope Loaded"
-
-
 #
 # Activity Data
 #
@@ -1859,345 +1935,3 @@ def fitbit_intraday_scope():
     return "Intraday Scope Loaded"
 
 
-#
-# Sleep Data
-#
-@bp.route("/fitbit_sleep_scope")
-def fitbit_sleep_scope():
-    start = timeit.default_timer()
-    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
-    # if caller provided date as query params, use that otherwise use yesterday
-    date_pulled = request.args.get("date", _date_pulled())
-    user_list = fitbit_bp.storage.all_users()
-    if request.args.get("user") in user_list:
-        user_list = [request.args.get("user")]
-
-    pd.set_option("display.max_columns", 500)
-
-    sleep_list = []
-    sleep_summary_list = []
-    sleep_minutes_list = []
-    # omh_sleep_list = []
-
-    for user in user_list:
-
-        log.debug("user: %s", user)
-
-        fitbit_bp.storage.user = user
-
-        if fitbit_bp.session.token:
-            del fitbit_bp.session.token
-
-        try:
-
-            resp = fitbit.get("/1/user/-/sleep/date/" + date_pulled + ".json")
-
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-
-            sleep = resp.json()["sleep"]
-
-            # if "minuteData" in resp.json().keys():
-            #     sleep_minutes = resp.json()["sleep"][0]["minuteData"]
-            #     sleep_minutes_df = pd.json_normalize(sleep_minutes)
-            #     sleep_minutes_columns = ["dateTime", "value"]
-            #     sleep_minutes_df = _normalize_response(
-            #         sleep_minutes_df, sleep_minutes_columns, user, date_pulled
-            #     )
-            # else:
-            #     cols = ["dateTime", "value"]
-            #     sleep_minutes_df = pd.DataFrame(columns=cols)
-            #     sleep_minutes_df = _normalize_response(
-            #         sleep_minutes_df, cols, user, date_pulled
-            #     )
-            # sleep_minutes_df["date_time"] = pd.to_datetime(
-            #     date_pulled + " " + sleep_minutes_df["date_time"]
-            # )
-            # sleep_minutes_list.append(sleep_minutes_df)
-
-            sleep_summary = resp.json()["summary"]
-            sleep_df = pd.json_normalize(sleep)
-            sleep_summary_df = pd.json_normalize(sleep_summary)
-
-            try:
-                sleep_df = sleep_df.drop(["minuteData"], axis=1)
-            except:
-                pass
-
-            sleep_columns = [
-                "awakeCount",
-                "awakeDuration",
-                "awakeningsCount",
-                "dateOfSleep",
-                "duration",
-                "efficiency",
-                "endTime",
-                "isMainSleep",
-                "logId",
-                "minutesAfterWakeup",
-                "minutesAsleep",
-                "minutesAwake",
-                "minutesToFallAsleep",
-                "restlessCount",
-                "restlessDuration",
-                "startTime",
-                "timeInBed",
-            ]
-            sleep_summary_columns = [
-                "totalMinutesAsleep",
-                "totalSleepRecords",
-                "totalTimeInBed",
-                "stages.deep",
-                "stages.light",
-                "stages.rem",
-                "stages.wake",
-            ]
-
-            # Fill missing columns
-            sleep_df = _normalize_response(
-                sleep_df, sleep_columns, user, date_pulled
-            )
-            sleep_df["end_time"] = pd.to_datetime(
-                date_pulled + " " + sleep_df["end_time"]
-            )
-            sleep_df["start_time"] = pd.to_datetime(
-                date_pulled + " " + sleep_df["start_time"]
-            )
-
-            sleep_summary_df = _normalize_response(
-                sleep_summary_df, sleep_summary_columns, user, date_pulled
-            )
-
-            # Append dfs to df list
-            sleep_list.append(sleep_df)
-            sleep_summary_list.append(sleep_summary_df)
-
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
-
-    # end loop over users
-
-    fitbit_stop = timeit.default_timer()
-    fitbit_execution_time = fitbit_stop - start
-    print("Sleep Scope: " + str(fitbit_execution_time))
-
-    if len(sleep_list) > 0:
-
-        try:
-
-            bulk_sleep_df = pd.concat(sleep_list, axis=0)
-
-            pandas_gbq.to_gbq(
-                dataframe=bulk_sleep_df,
-                destination_table=_tablename("sleep"),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=[
-                    {
-                        "name": "id",
-                        "type": "STRING",
-                        "mode": "REQUIRED",
-                        "description": "Primary Key",
-                    },
-                    {
-                        "name": "date",
-                        "type": "DATE",
-                        "mode": "REQUIRED",
-                        "description": "The date values were extracted",
-                    },
-                    {
-                        "name": "awake_count",
-                        "type": "INTEGER",
-                        "description": "Number of times woken up",
-                    },
-                    {
-                        "name": "awake_duration",
-                        "type": "INTEGER",
-                        "description": "Amount of time the user was awake",
-                    },
-                    {
-                        "name": "awakenings_count",
-                        "type": "INTEGER",
-                        "description": "Number of times woken up",
-                    },
-                    {
-                        "name": "date_of_sleep",
-                        "type": "DATE",
-                        "description": "The date the user fell asleep",
-                    },
-                    {
-                        "name": "duration",
-                        "type": "INTEGER",
-                        "description": "Length of the sleep in milliseconds.",
-                    },
-                    {
-                        "name": "efficiency",
-                        "type": "INTEGER",
-                        "description": "Calculated sleep efficiency score. This is not the sleep score available in the mobile application.",
-                    },
-                    {
-                        "name": "end_time",
-                        "type": "TIMESTAMP",
-                        "description": "Time the sleep log ended.",
-                    },
-                    {
-                        "name": "is_main_sleep",
-                        "type": "BOOLEAN",
-                        "decription": "True | False",
-                    },
-                    {
-                        "name": "log_id",
-                        "type": "INTEGER",
-                        "description": "Sleep log ID.",
-                    },
-                    {
-                        "name": "minutes_after_wakeup",
-                        "type": "INTEGER",
-                        "description": "The total number of minutes after the user woke up.",
-                    },
-                    {
-                        "name": "minutes_asleep",
-                        "type": "INTEGER",
-                        "description": "The total number of minutes the user was asleep.",
-                    },
-                    {
-                        "name": "minutes_awake",
-                        "type": "INTEGER",
-                        "description": "The total number of minutes the user was awake.",
-                    },
-                    {
-                        "name": "minutes_to_fall_asleep",
-                        "type": "INTEGER",
-                        "decription": "The total number of minutes before the user falls asleep. This value is generally 0 for autosleep created sleep logs.",
-                    },
-                    {
-                        "name": "restless_count",
-                        "type": "INTEGER",
-                        "decription": "The total number of times the user was restless",
-                    },
-                    {
-                        "name": "restless_duration",
-                        "type": "INTEGER",
-                        "decription": "The total amount of time the user was restless",
-                    },
-                    {
-                        "name": "start_time",
-                        "type": "TIMESTAMP",
-                        "description": "Time the sleep log begins.",
-                    },
-                    {
-                        "name": "time_in_bed",
-                        "type": "INTEGER",
-                        "description": "Total number of minutes the user was in bed.",
-                    },
-                ],
-            )
-
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
-
-    if len(sleep_minutes_list) > 0:
-
-        try:
-
-            bulk_sleep_minutes_df = pd.concat(sleep_minutes_list, axis=0)
-            bulk_sleep_minutes_df["value"] = bulk_sleep_minutes_df[
-                "value"
-            ].astype(int)
-
-            pandas_gbq.to_gbq(
-                dataframe=bulk_sleep_minutes_df,
-                destination_table=_tablename("sleep_minutes"),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=[
-                    {
-                        "name": "id",
-                        "type": "STRING",
-                        "mode": "REQUIRED",
-                        "description": "Primary Key",
-                    },
-                    {
-                        "name": "date",
-                        "type": "DATE",
-                        "mode": "REQUIRED",
-                        "description": "The date values were extracted",
-                    },
-                    {"name": "date_time", "type": "TIMESTAMP"},
-                    {"name": "value", "type": "INTEGER"},
-                ],
-            )
-
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
-
-    if len(sleep_summary_list) > 0:
-
-        try:
-
-            bulk_sleep_summary_df = pd.concat(sleep_summary_list, axis=0)
-
-            pandas_gbq.to_gbq(
-                dataframe=bulk_sleep_summary_df,
-                destination_table=_tablename("sleep_summary"),
-                project_id=project_id,
-                if_exists="append",
-                table_schema=[
-                    {
-                        "name": "id",
-                        "type": "STRING",
-                        "mode": "REQUIRED",
-                        "description": "Primary Key",
-                    },
-                    {
-                        "name": "date",
-                        "type": "DATE",
-                        "mode": "REQUIRED",
-                        "description": "The date values were extracted",
-                    },
-                    {
-                        "name": "total_minutes_asleep",
-                        "type": "INTEGER",
-                        "description": "Total number of minutes the user was asleep across all sleep records in the sleep log.",
-                    },
-                    {
-                        "name": "total_sleep_records",
-                        "type": "INTEGER",
-                        "description": "The number of sleep records within the sleep log.",
-                    },
-                    {
-                        "name": "total_time_in_bed",
-                        "type": "INTEGER",
-                        "description": "Total number of minutes the user was in bed across all records in the sleep log.",
-                    },
-                    {
-                        "name": "stages_deep",
-                        "type": "INTEGER",
-                        "description": "Total time of deep sleep",
-                    },
-                    {
-                        "name": "stages_light",
-                        "type": "INTEGER",
-                        "description": "Total time of light sleep",
-                    },
-                    {
-                        "name": "stages_rem",
-                        "type": "INTEGER",
-                        "description": "Total time of REM sleep",
-                    },
-                    {
-                        "name": "stages_wake",
-                        "type": "INTEGER",
-                        "description": "Total time awake",
-                    },
-                ],
-            )
-        except (Exception) as e:
-            log.error("exception occured: %s", str(e))
-
-    stop = timeit.default_timer()
-    execution_time = stop - start
-    print("Sleep Scope Loaded: " + str(execution_time))
-
-    fitbit_bp.storage.user = None
-
-    return "Sleep Scope Loaded"
