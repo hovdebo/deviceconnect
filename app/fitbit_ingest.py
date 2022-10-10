@@ -300,7 +300,7 @@ def fitbit_intraday_scope():
          intraday_hrv_list, schema.INTRADAY_HRV_TABLE, schema.INTRADAY_HRV_SCHEMA],
         ["/1/user/-/spo2/date/" + date_pulled + "/all.json", fitbit_classes.IntradaySpo2,
          intraday_spo2_list, schema.INTRADAY_SPO2_TABLE, schema.INTRADAY_SPO2_TABLE],
-        [f"/1/user/-/activities/steps/date/{date_pulled}/1d/1min.json.json", fitbit_classes.IntradaySteps,
+        ["/1/user/-/activities/steps/date/" + date_pulled + "/1d/1min.json.json", fitbit_classes.IntradaySteps,
          intraday_steps_list, schema.INTRADAY_STEPS_TABLE, schema.INTRADAY_STEPS_SCHEMA],
         [f"/1/user/-/activities/floors/date/{date_pulled}/1d/1min.json.json", fitbit_classes.IntradayFloors,
          intraday_floors_list, schema.INTRADAY_FLOORS_TABLE, schema.INTRADAY_FLOORS_SCHEMA],
