@@ -183,8 +183,8 @@ SLEEP_RECORDS_SCHEMA = [
     },
     {
         "name": "log_type",
-        "type": "INTEGER",
-        "decription": "The log creation method, auto_detected or manual",
+        "type": "STRING",
+        "description": "The log creation method, auto_detected or manual",
     },
     {
         "name": "start_time",
