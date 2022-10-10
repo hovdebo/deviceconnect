@@ -1,5 +1,5 @@
 import pandas as pd
-from _util import normalize
+from ._util import normalize
 
 
 class IntradayHeartRate:

@@ -1,9 +1,8 @@
-from dateutil import parser
 import pandas as pd
 from skimpy import clean_columns
 
-class SleepLog:
 
+class SleepLog:
     LEVELS = [
         "deep",
         "light",
