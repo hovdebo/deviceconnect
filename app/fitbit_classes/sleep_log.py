@@ -58,7 +58,7 @@ class SleepLog:
                 #"log_type",
                 "start_time",
                 #"time_in_bed",
-                #"type"
+                "type"
             ]
 
             meta_df.drop(columns=meta_cols, inplace=True)
