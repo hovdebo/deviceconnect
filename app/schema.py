@@ -34,7 +34,7 @@ ZONE_SCHEMA = [
     }
 ]
 
-INTRADAY_HEART_RATE_TABLE = "heart_rate"
+INTRADAY_HEART_RATE_TABLE = "intraday_heart_rate"
 INTRADAY_HEART_RATE_SCHEMA = [
     {
         "name": "id",

@@ -230,6 +230,8 @@ def fitbit_intraday_scope():
             try:
                 resp = fitbit.get(url)
                 log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
+                if resp.status_code != 200:
+                    continue
                 df = class_type(resp.json()).dataframe
                 df.insert(0, "id", user)
             except Exception as e:
@@ -242,8 +244,6 @@ def fitbit_intraday_scope():
 
     return "Intraday Scope Loaded"
 
-
-# Not touched yet
 
 @bp.route("/ingest")
 def ingest():
