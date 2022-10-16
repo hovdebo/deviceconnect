@@ -22,24 +22,10 @@ run on a schedule.
 Routes:
 
     /ingest: test route to test if the blueprint is correctly registered
-
     /download: download everything for the day to files
-
-    /update_tokens: will refresh all fitbit tokens to ensure they are valid
-        when being used.
-
-
     /fitbit_sleep_scope:  sleep data
     /fitbit_intraday_scope: includes intraday hrv, spo2, breathing_rate, steps, floors, distance,
                              elevation, calories, heart_rate
-
-
-
-    /fitbit_chunk_1: Badges, Social, Device information
-
-    /fitbit_body_weight: body and weight data
-
-    /fitbit_nutrition_scope: nutrition data
 
 Dependencies:
 
