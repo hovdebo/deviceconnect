@@ -1,21 +1,44 @@
 import pandas as pd
+from . _base import FitbitSummary, FitbitIntraday
 
 
-class IntradayHrv:
+class HrvSummary(FitbitSummary):
     def __init__(self, json_dict):
-        self.df = None
+        super().__init__(json_dict)
+
+        hrv = json_dict["hrv"]
+        if len(hrv) > 1:
+            raise RuntimeError(f"More than one date specified in {json_dict}")
+        hrv = hrv[0]
+        self._date = hrv['dateTime']
+        self._df = pd.DataFrame([pd.to_datetime(self._date)], columns=["time"])
+
+    @classmethod
+    def url(cls, user, date):
+        pass
+
+
+class HrvIntraday(FitbitIntraday):
+    def __init__(self, json_dict):
+        super().__init__(json_dict)
+
+        self._summary = HrvSummary(json_dict)
 
         hrv = json_dict["hrv"]
         if len(hrv) > 1:
             raise RuntimeError(f"More than one date specified in {json_dict}")
         hrv = hrv[0]
         minutes = hrv['minutes']
-        df = pd.json_normalize(minutes, None, ["value", "minute"])
-        df["minute"] = pd.to_datetime(df["minute"])
-        df.rename(columns={"minute": "time"}, inplace=True)
-        new_column_names = {old_name: old_name.split("value.")[1] for old_name in df.columns if len(old_name.split("value.")) ==2 }
-        df.rename(columns=new_column_names, inplace=True)
-        self.df = df
+        self._df = pd.json_normalize(minutes, None, ["value", "minute"])
+        self._df["minute"] = pd.to_datetime(self._df["minute"])
+        self._df.rename(columns={"minute": "time"}, inplace=True)
+        new_column_names = {old_name: old_name.split("value.")[1] for old_name in self._df.columns if len(old_name.split("value.")) ==2 }
+        self._df.rename(columns=new_column_names, inplace=True)
+
+    @classmethod
+    def url(cls, user, date):
+        return_val = f"/1/user/{user}/hrv/date/{date}/all.json"
+        return return_val
 
 
 if __name__ == "__main__":
@@ -65,6 +88,6 @@ if __name__ == "__main__":
         ]
     }
 
-    hrv = IntradayHrv(json_dict)
-    print(hrv.hrv_df)
-
+    hrv = HrvIntraday(json_dict)
+    print(hrv.dataframe)
+    print(hrv.summary.dataframe)

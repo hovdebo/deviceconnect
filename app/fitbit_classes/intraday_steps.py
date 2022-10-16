@@ -1,22 +1,11 @@
-import pandas as pd
-from . util import normalize
+from ._intraday_activity import ActivityIntraday
 
 
-class IntradaySteps:
+class StepsIntraday(ActivityIntraday):
+    ACTIVITY_TYPE = "steps"
+
     def __init__(self, json_dict):
-        self.date = None
-
-        activities = json_dict["activities-steps"]
-        if len(activities) > 1:
-            raise RuntimeError(f"More than one date specified in {json_dict}")
-        activities = activities[0]
-        date = activities["dateTime"]
-        total = activities["value"]
-
-        activities_intraday = json_dict["activities-steps-intraday"]
-        self.df = pd.json_normalize(activities_intraday, "dataset")
-        self.df = normalize(self.df, date, self.df["time"])
-        self.df.rename(columns={"value": "steps"}, inplace=True)
+        super().__init__(json_dict)
 
 
 if __name__ == "__main__":
@@ -51,5 +40,6 @@ if __name__ == "__main__":
         }
     }
 
-    activities = IntradaySteps(json_dict)
-    print(activities.df)
+    activities = StepsIntraday(json_dict)
+    print(activities.dataframe)
+    print(activities.summary.dataframe)

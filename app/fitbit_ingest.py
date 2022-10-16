@@ -23,13 +23,15 @@ Routes:
 
     /ingest: test route to test if the blueprint is correctly registered
 
+    /download: download everything for the day to files
+
     /update_tokens: will refresh all fitbit tokens to ensure they are valid
         when being used.
 
 
-    /fitbit_heart_rate_scope: heart rate information
     /fitbit_sleep_scope:  sleep data
-    /fitbit_intraday_scope: includes intraday hrv, steps, floors, distance, elevation, calories
+    /fitbit_intraday_scope: includes intraday hrv, spo2, breathing_rate, steps, floors, distance,
+                             elevation, calories, heart_rate
 
 
 
@@ -63,11 +65,10 @@ Notes:
 """
 
 import os
-import timeit
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 import logging
+import pickle
 
-import pandas as pd
 import pandas_gbq
 from flask import Blueprint, request
 from flask_dance.contrib.fitbit import fitbit
@@ -119,10 +120,9 @@ def _process_request(request):
     return project_id, date_pulled, user_list
 
 
-def _write_to_bq(df_list, table_name, project_id, table_schema):
-    if len(df_list) > 0:
+def _write_to_bq(bulk_df, table_name, project_id, table_schema):
+    if bulk_df.shape[0] > 0:
         try:
-            bulk_df = pd.concat(df_list, axis=0)
             pandas_gbq.to_gbq(
                 dataframe=bulk_df,
                 destination_table=_table_name(table_name),
@@ -134,96 +134,73 @@ def _write_to_bq(df_list, table_name, project_id, table_schema):
             log.error("exception occurred: %s", str(e))
 
 
-@bp.route("/fitbit_heart_rate_scope")
-def fitbit_heart_rate_scope():
-    start = timeit.default_timer()
+@bp.route("/download")
+def download():
     project_id, date_pulled, user_list = _process_request(request)
-
-    hr_zones_list = []
-    hr_list = []
     for user in user_list:
         fitbit_bp.storage.user = user
 
         if fitbit_bp.session.token:
             del fitbit_bp.session.token
 
-        try:
-            resp = fitbit.get(
-                "1.2/user/-/activities/heart/date/" + date_pulled + "/1d.json"
-            )
+        classes = [
+            [fitbit_classes.HeartRateIntraday, "HeartRateIntraday"],
+            [fitbit_classes.CaloriesIntraday, "CaloriesIntraday"],
+            [fitbit_classes.DistanceIntraday, "DistancesIntraday"],
+            [fitbit_classes.ElevationIntraday, "ElevationIntraday"],
+            [fitbit_classes.FloorsIntraday, "FloorsIntraday"],
+            [fitbit_classes.HrvIntraday, "HrvIntraday"],
+            [fitbit_classes.Spo2Intraday, "Spo2Intraday"],
+            [fitbit_classes.StepsIntraday, "StepsIntraday"],
+            [fitbit_classes.BreathingRateIntraday, "BreathingRateIntraday"],
+            [fitbit_classes.SleepLog, "SleepLog"],
+        ]
 
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
+        for class_type, class_string in classes:
+            try:
+                resp = fitbit.get(
+                    class_type.url("-", date_pulled)
+                )
 
-            intraday_hr = fitbit_classes.IntradayHeartRate(resp.json())
+                log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
+                if resp.status_code == 200:
+                    json_response = resp.json()
+                    filename = f"{class_string}_{date_pulled}_{user}.pickle"
+                    with open(filename, 'wb') as f:
+                        pickle.dump(json_response, f)
 
-            intraday_hr.heart_rate_df.insert(0, "id", user)
-            hr_list.append(intraday_hr.heart_rate_df)
+            except Exception as e:
+                log.error(f"exception occurred while loading '{class_string}': {e}")
 
-            intraday_hr.zones_df.insert(0, "id", user)
-            hr_zones_list.append(intraday_hr.zones_df)
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
-
-    load_stop = timeit.default_timer()
-    time_to_load = load_stop - start
-    print("Heart Rate Zones " + str(time_to_load))
-
-    _write_to_bq(hr_zones_list, schema.ZONE_TABLE, project_id, schema.ZONE_SCHEMA)
-    _write_to_bq(hr_list, schema.HEART_RATE_TABLE, project_id, schema.HEART_RATE_SCHEMA)
-
-    stop = timeit.default_timer()
-    execution_time = stop - start
-    print("Heart Rate Scope Loaded " + str(execution_time))
-
-    fitbit_bp.storage.user = None
-    return "Heart Rate Scope Loaded"
+        return "Downloaded"
 
 
 @bp.route("/fitbit_sleep_scope")
 def fitbit_sleep_scope():
-    start = timeit.default_timer()
     project_id, date_pulled, user_list = _process_request(request)
-
-    sleep_meta_list = []
-    sleep_stage_list = []
     for user in user_list:
-
-        log.debug("user: %s", user)
-
         fitbit_bp.storage.user = user
 
         if fitbit_bp.session.token:
             del fitbit_bp.session.token
 
         try:
-
-            resp = fitbit.get("/1.2/user/-/sleep/date/" + date_pulled + ".json")
-
+            resp = fitbit.get(fitbit_classes.SleepLog.url("-", date_pulled))
             log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
 
             sleep = fitbit_classes.SleepLog(resp.json())
 
-            sleep.stage_df.insert(0, "id", user)
-            sleep_stage_list.append(sleep.stage_df)
+            df = sleep.dataframe
+            df.insert(0, "id", user)
 
-            sleep.meta_df.insert(0, "id", user)
-            sleep_meta_list.append(sleep.meta_df)
-
+            meta_df = sleep.meta_dataframe
+            meta_df.insert(0, "id", user)
         except Exception as e:
             log.error("exception occurred: %s", str(e))
+            continue
 
-    # end loop over users
-
-    fitbit_stop = timeit.default_timer()
-    fitbit_execution_time = fitbit_stop - start
-    print("Sleep Scope: " + str(fitbit_execution_time))
-
-    _write_to_bq(sleep_stage_list, schema.SLEEP_STAGES_TABLE, project_id, schema.SLEEP_STAGES_SCHEMA)
-    _write_to_bq(sleep_meta_list, schema.SLEEP_RECORDS_TABLE, project_id, schema.SLEEP_RECORDS_SCHEMA)
-
-    stop = timeit.default_timer()
-    execution_time = stop - start
-    print("Sleep Scope Loaded: " + str(execution_time))
+        _write_to_bq(df, schema.SLEEP_STAGES_TABLE, project_id, schema.SLEEP_STAGES_SCHEMA)
+        _write_to_bq(meta_df, schema.SLEEP_RECORDS_TABLE, project_id, schema.SLEEP_RECORDS_SCHEMA)
 
     fitbit_bp.storage.user = None
 
@@ -232,32 +209,22 @@ def fitbit_sleep_scope():
 
 @bp.route("/fitbit_intraday_scope")
 def fitbit_intraday_scope():
-    start = timeit.default_timer()
     project_id, date_pulled, user_list = _process_request(request)
 
-    intraday_hrv_list = []
-    intraday_spo2_list = []
-    intraday_steps_list = []
-    intraday_floors_list = []
-    intraday_distance_list = []
-    intraday_elevation_list = []
-    intraday_calories_list = []
-
     activities = [
-        [f"/1/user/-/hrv/date/{date_pulled}/all.json", fitbit_classes.IntradayHrv,
-         intraday_hrv_list, schema.INTRADAY_HRV_TABLE, schema.INTRADAY_HRV_SCHEMA],
-        [f"/1/user/-/spo2/date/{date_pulled}/all.json", fitbit_classes.IntradaySpo2,
-         intraday_spo2_list, schema.INTRADAY_SPO2_TABLE, schema.INTRADAY_SPO2_TABLE],
-        [f"/1/user/-/activities/steps/date/{date_pulled}/1d/1min.json", fitbit_classes.IntradaySteps,
-         intraday_steps_list, schema.INTRADAY_STEPS_TABLE, schema.INTRADAY_STEPS_SCHEMA],
-        [f"/1/user/-/activities/floors/date/{date_pulled}/1d/1min.json", fitbit_classes.IntradayFloors,
-         intraday_floors_list, schema.INTRADAY_FLOORS_TABLE, schema.INTRADAY_FLOORS_SCHEMA],
-        [f"/1/user/-/activities/distance/date/{date_pulled}/1d/1min.json", fitbit_classes.IntradayDistance,
-         intraday_distance_list, schema.INTRADAY_DISTANCE_TABLE, schema.INTRADAY_DISTANCE_SCHEMA],
-        [f"/1/user/-/activities/elevation/date/{date_pulled}/1d/1min.json", fitbit_classes.IntradayElevation,
-         intraday_elevation_list, schema.INTRADAY_ELEVATION_TABLE, schema.INTRADAY_ELEVATION_SCHEMA],
-        [f"/1/user/-/activities/calories/date/{date_pulled}/1d/1min.json", fitbit_classes.IntradayCalories,
-         intraday_calories_list, schema.INTRADAY_CALORIES_TABLE, schema.INTRADAY_CALORIES_SCHEMA],
+        [fitbit_classes.HrvIntraday, schema.INTRADAY_HRV_TABLE, schema.INTRADAY_HRV_SCHEMA],
+        [fitbit_classes.Spo2Intraday, schema.INTRADAY_SPO2_TABLE, schema.INTRADAY_SPO2_TABLE],
+        [fitbit_classes.StepsIntraday, schema.INTRADAY_STEPS_TABLE, schema.INTRADAY_STEPS_SCHEMA],
+        [fitbit_classes.FloorsIntraday, schema.INTRADAY_FLOORS_TABLE, schema.INTRADAY_FLOORS_SCHEMA],
+        [fitbit_classes.DistanceIntraday, schema.INTRADAY_DISTANCE_TABLE, schema.INTRADAY_DISTANCE_SCHEMA],
+        [fitbit_classes.ElevationIntraday, schema.INTRADAY_ELEVATION_TABLE, schema.INTRADAY_ELEVATION_SCHEMA],
+        [fitbit_classes.CaloriesIntraday, schema.INTRADAY_CALORIES_TABLE, schema.INTRADAY_CALORIES_SCHEMA],
+        [fitbit_classes.HeartRateIntraday,
+         schema.INTRADAY_HEART_RATE_TABLE,
+         schema.INTRADAY_HEART_RATE_SCHEMA],
+        [fitbit_classes.BreathingRateIntraday,
+         schema.INTRADAY_BREATHING_RATE_TABLE,
+         schema.INTRADAY_BREATHING_RATE_SCHEMA],
     ]
 
     for user in user_list:
@@ -268,34 +235,22 @@ def fitbit_intraday_scope():
             del fitbit_bp.session.token
 
         for activity in activities:
-            url = activity[0]
-            class_type = activity[1]
-            df_list = activity[2]
+            class_type = activity[0]
+            table_name = activity[1]
+            table_schema = activity[2]
+
+            url = class_type.url("-", date_pulled)
 
             try:
                 resp = fitbit.get(url)
                 log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-                df = class_type(resp.json()).df
+                df = class_type(resp.json()).dataframe
                 df.insert(0, "id", user)
-                df_list.append(df)
             except Exception as e:
                 log.error(f"Exception occurred during processing of url '{url}': {e}")
+                continue
 
-    # end loop over users
-
-    fitbit_stop = timeit.default_timer()
-    fitbit_execution_time = fitbit_stop - start
-    print("Intraday Scope: " + str(fitbit_execution_time))
-
-    for activity in activities:
-        df_list = activity[2]
-        table_name = activity[3]
-        table_schema = activity[4]
-        _write_to_bq(df_list, table_name, project_id, table_schema)
-
-    stop = timeit.default_timer()
-    execution_time = stop - start
-    print("Intraday Scope Loaded: " + str(execution_time))
+            _write_to_bq(df, table_name, project_id, table_schema)
 
     fitbit_bp.storage.user = None
 
@@ -313,9 +268,7 @@ def ingest():
     log.debug(all_users)
 
     for x in all_users:
-
         try:
-
             log.debug("user = " + x)
 
             fitbit_bp.storage.user = x
@@ -347,472 +300,3 @@ def ingest():
             log.error("exception occurred: %s", str(e))
 
     return str(result)
-
-
-#
-# Chunk 1: Badges, Social, Device
-#
-@bp.route("/fitbit_chunk_1")
-def fitbit_chunk_1():
-    start = timeit.default_timer()
-    project_id, date_pulled, user_list = _process_request(request)
-
-    badges_list = []
-    device_list = []
-    social_list = []
-
-    for user in user_list:
-
-        log.debug("user: %s", user)
-
-        fitbit_bp.storage.user = user
-
-        if fitbit_bp.session.token:
-            del fitbit_bp.session.token
-
-        try:
-            resp = fitbit.get("/1/user/-/badges.json")
-
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-
-            badges = resp.json()["badges"]
-
-            badges_df = pd.json_normalize(badges)
-            badges_columns = [
-                "badgeGradientEndColor",
-                "badgeGradientStartColor",
-                "badgeType",
-                "category",
-                "cheers",
-                "dateTime",
-                "description",
-                "earnedMessage",
-                "encodedId",
-                "image100px",
-                "image125px",
-                "image300px",
-                "image50px",
-                "image75px",
-                "marketingDescription",
-                "mobileDescription",
-                "name",
-                "shareImage640px",
-                "shareText",
-                "shortDescription",
-                "shortName",
-                "timesAchieved",
-                "value",
-                "unit",
-            ]
-            badges_df = _normalize_response(
-                badges_df, badges_columns, user, date_pulled
-            )
-            try:
-                badges_df = badges_df.drop(["cheers"], axis=1)
-            except Exception as e:
-                log.error("exception occurred: %s", str(e))
-
-            badges_list.append(badges_df)
-
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
-
-        try:
-            resp = fitbit.get("1/user/-/devices.json")
-
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-
-            device_df = pd.json_normalize(resp.json())
-            try:
-                device_df = device_df.drop(
-                    ["features", "id", "mac", "type"], axis=1
-                )
-            except Exception as e:
-                log.error("exception occurred: %s", str(e))
-
-            device_columns = [
-                "battery",
-                "batteryLevel",
-                "deviceVersion",
-                "lastSyncTime",
-            ]
-            device_df = _normalize_response(
-                device_df, device_columns, user, date_pulled
-            )
-            device_df["last_sync_time"] = device_df["last_sync_time"].apply(
-                lambda x: datetime.strptime(x, "%Y-%m-%dT%H:%M:%S.%f")
-            )
-            device_list.append(device_df)
-
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
-
-        try:
-            resp = fitbit.get("1.1/user/-/friends.json")
-
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-
-            social_df = pd.json_normalize(resp.json()["data"])
-            social_df = social_df.rename(columns={"id": "friend_id"})
-            social_columns = [
-                "friend_id",
-                "type",
-                "attributes.name",
-                "attributes.friend",
-                "attributes.avatar",
-                "attributes.child",
-            ]
-            social_df = _normalize_response(
-                social_df, social_columns, user, date_pulled
-            )
-            social_list.append(social_df)
-
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
-
-    # end loop over users
-    load_stop = timeit.default_timer()
-    time_to_load = load_stop - start
-    print("Program Executed in " + str(time_to_load))
-
-    log.debug("push to BQ")
-    _write_to_bq(badges_list, schema.BADGES_TABLE, project_id, schema.BADGES_SCHEMA)
-    _write_to_bq(device_list, schema.DEVICES_TABLE, project_id, schema.DEVICES_SCHEMA)
-    _write_to_bq(social_list, schema.SOCIAL_TABLE, project_id, schema.SOCIAL_SCHEMA)
-
-    stop = timeit.default_timer()
-    execution_time = stop - start
-    print("Fitbit Chunk Loaded " + str(execution_time))
-
-    fitbit_bp.storage.user = None
-
-    return "Fitbit Chunk Loaded"
-
-
-#
-# Body and Weight
-#
-@bp.route("/fitbit_body_weight")
-def fitbit_body_weight():
-    start = timeit.default_timer()
-    project_id, date_pulled, user_list = _process_request(request)
-
-    body_weight_df_list = []
-
-    for user in user_list:
-
-        log.debug("user: %s", user)
-
-        fitbit_bp.storage.user = user
-
-        if fitbit_bp.session.token:
-            del fitbit_bp.session.token
-
-        try:
-
-            resp = fitbit.get(
-                "/1/user/-/body/log/weight/date/" + date_pulled + ".json"
-            )
-
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-
-            body_weight = resp.json()["weight"]
-            assert body_weight, "weight returned no data"
-            body_weight_df = pd.json_normalize(body_weight)
-            try:
-                body_weight_df = body_weight_df.drop(["date", "time"], axis=1)
-            except Exception as e:
-                log.error("exception occurred: %s", str(e))
-
-            body_weight_columns = ["bmi", "fat", "logId", "source", "weight"]
-            body_weight_df = _normalize_response(
-                body_weight_df, body_weight_columns, user, date_pulled
-            )
-            body_weight_df_list.append(body_weight_df)
-
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
-
-    # end loop over users
-
-    log.debug("push to BQ")
-    _write_to_bq(body_weight_df_list, schema.BODY_WEIGHT_TABLE, project_id, schema.BODY_WEIGHT_SCHEMA)
-
-    stop = timeit.default_timer()
-    execution_time = stop - start
-    print("Body & Weight Scope Loaded " + str(execution_time))
-
-    fitbit_bp.storage.user = None
-
-    return "Body & Weight Scope Loaded"
-
-
-#
-# Nutrition Data
-#
-@bp.route("/fitbit_nutrition_scope")
-def fitbit_nutrition_scope():
-    start = timeit.default_timer()
-    project_id, date_pulled, user_list = _process_request(request)
-
-    nutrition_summary_list = []
-    nutrition_logs_list = []
-    nutrition_goals_list = []
-
-    for user in user_list:
-
-        log.debug("user: %s", user)
-
-        fitbit_bp.storage.user = user
-
-        if fitbit_bp.session.token:
-            del fitbit_bp.session.token
-
-        try:
-
-            resp = fitbit.get(
-                "/1/user/-/foods/log/date/" + date_pulled + ".json"
-            )
-
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-
-            nutrition_summary = resp.json()["summary"]
-            nutrition_logs = resp.json()["foods"]
-
-            nutrition_summary_df = pd.json_normalize(nutrition_summary)
-            nutrition_logs_df = pd.json_normalize(nutrition_logs)
-
-            try:
-                nutrition_logs_df = nutrition_logs_df.drop(
-                    [
-                        "loggedFood.creatorEncodedId",
-                        "loggedFood.unit.id",
-                        "loggedFood.units",
-                    ],
-                    axis=1,
-                )
-            except Exception as e:
-                log.error("exception occurred: %s", str(e))
-
-            nutrition_summary_columns = [
-                "calories",
-                "carbs",
-                "fat",
-                "fiber",
-                "protein",
-                "sodium",
-                "water",
-            ]
-            nutrition_logs_columns = [
-                "isFavorite",
-                "logDate",
-                "logId",
-                "loggedFood.accessLevel",
-                "loggedFood.amount",
-                "loggedFood.brand",
-                "loggedFood.calories",
-                "loggedFood.foodId",
-                "loggedFood.mealTypeId",
-                "loggedFood.name",
-                "loggedFood.unit.name",
-                "loggedFood.unit.plural",
-                "nutritionalValues.calories",
-                "nutritionalValues.carbs",
-                "nutritionalValues.fat",
-                "nutritionalValues.fiber",
-                "nutritionalValues.protein",
-                "nutritionalValues.sodium",
-                "loggedFood.locale",
-            ]
-
-            nutrition_summary_df = _normalize_response(
-                nutrition_summary_df,
-                nutrition_summary_columns,
-                user,
-                date_pulled,
-            )
-            nutrition_logs_df = _normalize_response(
-                nutrition_logs_df, nutrition_logs_columns, user, date_pulled
-            )
-
-            nutrition_summary_list.append(nutrition_summary_df)
-            nutrition_logs_list.append(nutrition_logs_df)
-
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
-
-        try:
-            resp = fitbit.get("/1/user/-/foods/log/goal.json")
-
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-
-            nutrition_goal = resp.json()["goals"]
-            nutrition_goal_df = pd.json_normalize(nutrition_goal)
-            nutrition_goal_columns = ["calories"]
-            nutrition_goal_df = _normalize_response(
-                nutrition_goal_df, nutrition_goal_columns, user, date_pulled
-            )
-            nutrition_goals_list.append(nutrition_goal_df)
-
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
-
-    # end of loop over users
-    log.debug("push to BQ")
-    _write_to_bq(nutrition_summary_list, schema.NUTRITION_SUMMARY_TABLE, project_id, schema.NUTRITION_SUMMARY_SCHEMA)
-    _write_to_bq(nutrition_logs_list, schema.NUTRITION_LOGS_TABLE, project_id, schema.NUTRITION_LOGS_SCHEMA)
-    _write_to_bq(nutrition_goals_list, schema.NUTRITION_GOALS_TABLE, project_id, schema.NUTRITION_GOALS_SCHEMA)
-
-    stop = timeit.default_timer()
-    execution_time = stop - start
-    print("Nutrition Scope Loaded " + str(execution_time))
-
-    fitbit_bp.storage.user = None
-
-    return "Nutrition Scope Loaded"
-
-
-#
-# Activity Data
-#
-@bp.route("/fitbit_activity_scope")
-def fitbit_activity_scope():
-    start = timeit.default_timer()
-    project_id, date_pulled, user_list = _process_request(request)
-
-    activities_list = []
-    activity_summary_list = []
-    # activity_distance_list = []
-    activity_goals_list = []
-    # omh_activity_list = []
-
-    for user in user_list:
-
-        log.debug("user: %s", user)
-
-        fitbit_bp.storage.user = user
-
-        if fitbit_bp.session.token:
-            del fitbit_bp.session.token
-
-        try:
-
-            resp = fitbit.get(
-                "/1/user/-/activities/date/" + date_pulled + ".json"
-            )
-
-            log.debug("%s: %d [%s]", resp.url, resp.status_code, resp.reason)
-
-            # subset response for activities, summary, and goals
-            activity_goals = resp.json()["goals"]
-            activities = resp.json()["activities"]
-            activity_summary = resp.json()["summary"]
-
-            activity_goals_df = pd.json_normalize(activity_goals)
-            activity_goals_columns = [
-                "activeMinutes",
-                "caloriesOut",
-                "distance",
-                "floors",
-                "steps",
-            ]
-            activity_goals_df = _normalize_response(
-                activity_goals_df, activity_goals_columns, user, date_pulled
-            )
-
-            # activity_distances = resp.json()["summary"]["distances"]
-            # activity_distances_df = pd.json_normalize(activity_distances)
-            # activity_distances_columns = [
-            #     "activity",
-            #     "total_distance",
-            #     "tracker_distance",
-            #     "logged_activities_distance",
-            #     "very_active_distance",
-            #     "moderately_active_distance",
-            #     "lightly_active_distance",
-            #     "sedentary_active_distance",
-            # ]
-
-            activities_df = pd.json_normalize(activities)
-            # Define columns
-            activities_columns = [
-                "activityId",
-                "activityParentId",
-                "activityParentName",
-                "calories",
-                "description",
-                "distance",
-                "duration",
-                "hasActiveZoneMinutes",
-                "hasStartTime",
-                "isFavorite",
-                "lastModified",
-                "logId",
-                "name",
-                "startDate",
-                "startTime",
-                "steps",
-            ]
-            activities_df = _normalize_response(
-                activities_df, activities_columns, user, date_pulled
-            )
-            activities_df["start_datetime"] = pd.to_datetime(
-                activities_df["start_date"] + " " + activities_df["start_time"]
-            )
-            activities_df = activities_df.drop(
-                ["start_date", "start_time", "last_modified"], axis=1
-            )
-
-            activity_summary_df = pd.json_normalize(activity_summary)
-            try:
-                activity_summary_df = activity_summary_df.drop(
-                    ["distances", "heartRateZones"], axis=1
-                )
-            except Exception as e:
-                log.error("exception occurred: %s", str(e))
-
-            activity_summary_columns = [
-                "activeScore",
-                "activityCalories",
-                "caloriesBMR",
-                "caloriesOut",
-                "elevation",
-                "fairlyActiveMinutes",
-                "floors",
-                "lightlyActiveMinutes",
-                "marginalCalories",
-                "restingHeartRate",
-                "sedentaryMinutes",
-                "steps",
-                "veryActiveMinutes",
-            ]
-
-            activity_summary_df = _normalize_response(
-                activity_summary_df, activity_summary_columns, user, date_pulled
-            )
-
-            # Append dfs to df list
-            activities_list.append(activities_df)
-            activity_summary_list.append(activity_summary_df)
-            activity_goals_list.append(activity_goals_df)
-
-        except Exception as e:
-            log.error("exception occurred: %s", str(e))
-
-    fitbit_stop = timeit.default_timer()
-    fitbit_execution_time = fitbit_stop - start
-    print("Activity Scope: " + str(fitbit_execution_time))
-
-    # bulk_omh_activity_df = pd.concat(omh_activity_list, axis=0)
-
-    _write_to_bq(activities_list, schema.ACTIVITY_LOGS_TABLE, project_id, schema.ACTIVITY_LOGS_SCHEMA)
-    _write_to_bq(activity_summary_list, schema.ACTIVITY_SUMMARY_TABLE, project_id, schema.ACTIVITY_SUMMARY_SCHEMA)
-    _write_to_bq(activity_goals_list, schema.ACTIVITY_GOALS_TABLE, project_id, schema.ACTIVITY_GOALS_SCHEMA)
-
-    stop = timeit.default_timer()
-    execution_time = stop - start
-    print("Activity Scope Loaded: " + str(execution_time))
-
-    fitbit_bp.storage.user = None
-
-    return "Activity Scope Loaded"

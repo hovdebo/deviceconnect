@@ -1,6 +1,8 @@
-from ._intraday_activity import IntradayActivity
+from ._intraday_activity import ActivityIntraday
 
 
-class IntradayElevation(IntradayActivity):
+class ElevationIntraday(ActivityIntraday):
+    ACTIVITY_TYPE = "elevation"
+
     def __init__(self, json_dict):
-        super().__init__(json_dict, "elevation")
+        super().__init__(json_dict)

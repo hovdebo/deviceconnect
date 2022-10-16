@@ -1,8 +1,38 @@
 import pandas as pd
 from skimpy import clean_columns
+from .util import normalize
+from ._base import FitbitSummary, FitbitIntraday
 
 
-class SleepLog:
+class SleepSummary(FitbitSummary):
+
+    def __init__(self, json_dict):
+        super().__init__(json_dict)
+
+        sleep = json_dict["sleep"]
+        if len(sleep) > 1:
+            raise RuntimeError(f"More than one date specified in {json_dict}")
+        sleep = sleep[0]
+        self._date = sleep["dateOfSleep"]
+
+        summary = json_dict["summary"]
+
+        df = pd.json_normalize(summary)
+        df.rename(columns={
+            "stages.deep": "deep_minutes",
+            "stages.light": "light_minutes",
+            "stages.rem": "rem_minutes",
+            "stages.wake": "wake_minutes"
+        }, inplace=True)
+        self._df = normalize(df, self._date, "00:00:00")
+
+    @classmethod
+    def url(cls, user, date):
+        pass
+
+
+class SleepLog(FitbitIntraday):
+
     LEVELS = [
         "deep",
         "light",
@@ -10,30 +40,35 @@ class SleepLog:
         "wake"
     ]
 
+    META_COLS = [
+        "dateOfSleep",
+        "duration",
+        "efficiency",
+        "endTime",
+        "infoCode",
+        "isMainSleep",
+        "logId",
+        "minutesAfterWakeup",
+        "minutesAsleep",
+        "minutesAwake",
+        "minutesToFallAsleep",
+        "logType",
+        "startTime",
+        "timeInBed",
+        "type"
+    ]
+
     def __init__(self, json_dict):
+        super().__init__(json_dict)
+
+        self._summary = SleepSummary(json_dict)
+
         sleeps = json_dict["sleep"]
-        meta_cols = [
-            "dateOfSleep",
-            "duration",
-            "efficiency",
-            "endTime",
-            "infoCode",
-            "isMainSleep",
-            "logId",
-            "minutesAfterWakeup",
-            "minutesAsleep",
-            "minutesAwake",
-            "minutesToFallAsleep",
-            "logType",
-            "startTime",
-            "timeInBed",
-            "type"
-            ]
 
         meta_dfs = []
         stage_dfs = []
         for sleep in sleeps:
-            meta_dict = {key: sleep[key] for key in meta_cols}
+            meta_dict = {key: sleep[key] for key in self.META_COLS}
             meta_df = clean_columns(pd.json_normalize(meta_dict))
             meta_df["end_time"] = pd.to_datetime(meta_df["end_time"])
             meta_df["start_time"] = pd.to_datetime(meta_df["start_time"])
@@ -49,8 +84,18 @@ class SleepLog:
             stage_df["time"] = pd.to_datetime(stage_df["time"])
             stage_dfs.append(stage_df)
 
-        self.meta_df = pd.concat(meta_dfs)
-        self.stage_df = pd.concat(stage_dfs)
+        self._meta_df = pd.concat(meta_dfs)
+        self._df = pd.concat(stage_dfs)
+
+    @property
+    def meta_dataframe(self):
+        return self._meta_df
+
+    @staticmethod
+    def url(user, date):
+        return_val = "/1.2/user/{user}/sleep/date/{date}.json".format(user=user,
+                                                                      date=date)
+        return return_val
 
 
 if __name__ == "__main__":
@@ -150,4 +195,11 @@ if __name__ == "__main__":
         }
     }
 
-    sleep = SleepLog(json_dict)
+    #sleep = SleepLog(json_dict)
+    #print(sleep.meta_df)
+    #print(sleep.stage_df)
+
+    log = SleepLog(json_dict)
+    print(log.meta_dataframe)
+    print(log.dataframe)
+    print(log.summary.dataframe)

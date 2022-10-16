@@ -34,8 +34,8 @@ ZONE_SCHEMA = [
     }
 ]
 
-HEART_RATE_TABLE = "heart_rate"
-HEART_RATE_SCHEMA = [
+INTRADAY_HEART_RATE_TABLE = "heart_rate"
+INTRADAY_HEART_RATE_SCHEMA = [
     {
         "name": "id",
         "type": "STRING",
@@ -50,6 +50,16 @@ HEART_RATE_SCHEMA = [
         "name": "heart_rate",
         "type": "INTEGER",
         "description": "Recorded heart rate"
+    },
+    {
+        "name": "dataset_interval",
+        "type": "INTEGER",
+        "description": "Period for dataset"
+    },
+    {
+        "name": "dataset_type",
+        "type": "STRING",
+        "description": "Unit of dataset interval"
     },
 ]
 
@@ -959,4 +969,29 @@ ACTIVITY_GOALS_SCHEMA = [
         "type": "INTEGER",
         "description": "User defined goal for daily step count.",
     },
+]
+
+INTRADAY_BREATHING_RATE_TABLE = "intraday_breathing_rate"
+INTRADAY_BREATHING_RATE_SCHEMA = [
+    {
+        "name": "id",
+        "type": "STRING",
+        "mode": "REQUIRED",
+        "description": "Primary Key",
+    },
+    {
+        "name": "time",
+        "type": "TIMESTAMP",
+        "description": "Timestamp of the data"
+    },
+    {
+        "name": "stage",
+        "type": "STRING",
+        "description": "Sleep stage",
+    },
+    {
+        "name": "rate",
+        "type": "Float",
+        "description": "Breathing rate while in sleep stage",
+    }
 ]

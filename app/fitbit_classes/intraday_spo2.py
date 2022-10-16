@@ -1,15 +1,34 @@
 import pandas as pd
+from . _base import FitbitSummary, FitbitIntraday
 
 
-class IntradaySpo2:
+class Spo2Summary(FitbitSummary):
     def __init__(self, json_dict):
-        self.spo2_df = None
+        super().__init__(json_dict)
+
+        self._date = json_dict['dateTime']
+        self._df = pd.DataFrame([pd.to_datetime(self._date)], columns=["time"])
+
+    @classmethod
+    def url(cls, user, date):
+        pass
+
+
+class Spo2Intraday(FitbitIntraday):
+    def __init__(self, json_dict):
+        super().__init__(json_dict)
+
+        self._summary = Spo2Summary(json_dict)
 
         minutes = json_dict['minutes']
-        df = pd.json_normalize(minutes, None, ["value", "minute"])
-        df["minute"] = pd.to_datetime(df["minute"])
-        df.rename(columns={"minute": "time", "value": "spo2"}, inplace=True)
-        self.df = df
+        self._df = pd.json_normalize(minutes, None, ["value", "minute"])
+        self._df["minute"] = pd.to_datetime(self._df["minute"])
+        self._df.rename(columns={"minute": "time", "value": "spo2"}, inplace=True)
+
+    @classmethod
+    def url(cls, user, date):
+        return_val = f"/1/user/{user}/spo2/date/{date}/all.json"
+        return return_val
 
 
 if __name__ == "__main__":
@@ -31,5 +50,6 @@ if __name__ == "__main__":
         ]
     }
 
-    hrv = IntradaySpo2(json_dict)
-    print(hrv.spo2_df)
+    spo2 = Spo2Intraday(json_dict)
+    print(spo2.dataframe)
+    print(spo2.summary.dataframe)

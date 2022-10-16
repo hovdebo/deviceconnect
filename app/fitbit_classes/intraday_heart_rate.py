@@ -1,38 +1,58 @@
 import pandas as pd
 from . util import normalize
+from . _base import FitbitSummary, FitbitIntraday
 
 
-class IntradayHeartRate:
+class HeartRateSummary(FitbitSummary):
     def __init__(self, json_dict):
-        self.zones_df = None
-        self.heart_rate_df = None
-        self.resting_heart_rate = None
-        self.dataset_interval = None
-        self.dataset_type = None
+        super().__init__(json_dict)
+        self._date = None
+        self._df = None
+        self._resting_heart_rate = None
 
         activities_heart = json_dict["activities-heart"]
         if len(activities_heart) > 1:
-            raise RuntimeError(f"More than one date specified in {json_dict}")
+            raise RuntimeError(f"More than one date specified in {self.json}")
         activities_heart = activities_heart[0]
-        date = activities_heart["dateTime"]
+        self._date = activities_heart["dateTime"]
+
         zones = activities_heart["value"]
+        self._resting_heart_rate = zones["restingHeartRate"]
 
         custom_zones_df = pd.json_normalize(zones["customHeartRateZones"])
-        custom_zones_df = normalize(custom_zones_df, date, "00:00:00")
+        custom_zones_df = normalize(custom_zones_df, self._date, "00:00:00")
 
         zones_df = pd.json_normalize(zones["heartRateZones"])
-        self.zones_df = normalize(zones_df, date, "00:00:00")
-        self.zones_df = pd.concat([custom_zones_df, self.zones_df])
+        zones_df = normalize(zones_df, self._date, "00:00:00")
+        self._df = pd.concat([custom_zones_df, zones_df], ignore_index=True)
 
-        self.resting_heart_rate = zones["restingHeartRate"]
+    @property
+    def url(self, user, date, period='1d'):
+        return_val = "1/user/{user}/activities/heart/date/{date}/{period}.json".format(user=user,
+                                                                                       date=date,
+                                                                                       period=period)
+        return return_val
+
+
+class HeartRateIntraday(FitbitIntraday):
+    def __init__(self, json_dict):
+        super().__init__(json_dict)
+        self._summary = HeartRateSummary(json_dict)
 
         activities_heart_intraday = json_dict["activities-heart-intraday"]
         heart_rate_intraday = activities_heart_intraday["dataset"]
         heart_rate_intraday_df = pd.json_normalize(heart_rate_intraday)
-        self.heart_rate_df = normalize(heart_rate_intraday_df, date, heart_rate_intraday_df["time"])
-        self.heart_rate_df.rename(columns={"value": "heart_rate"}, inplace=True)
-        self.dataset_interval = activities_heart_intraday["datasetInterval"]
-        self.dataset_type = activities_heart_intraday["datasetType"]
+        self._df = normalize(heart_rate_intraday_df, self._summary.date, heart_rate_intraday_df["time"])
+        self._df.rename(columns={"value": "heart_rate"}, inplace=True)
+        self._df["dataset_interval"] = activities_heart_intraday["datasetInterval"]
+        self._df["dataset_type"] = activities_heart_intraday["datasetType"]
+
+    @classmethod
+    def url(cls, user, date, resolution="1d"):
+        return_val = "1.2/user/{user}/activities/heart/date/{date}/{resolution}.json".format(user=user,
+                                                                                             date=date,
+                                                                                             resolution=resolution)
+        return return_val
 
 
 if __name__ == "__main__":
@@ -125,8 +145,6 @@ if __name__ == "__main__":
         "datasetType": "minute"
       }
     }
-    intraday = IntradayHeartRate(json_dict)
-    print(intraday.zones_df)
-  #  print(intraday.heart_rate)
-  #  for heart_rate in intraday.heart_rate:
-  #      print(heart_rate.date_time, heart_rate.heart_rate)
+    intraday = HeartRateIntraday(json_dict)
+    print(intraday.dataframe)
+    print(intraday.summary.dataframe)
